@@ -1,3 +1,9 @@
+# Sample Information
+
+## Sample Metadata (as it exists)
+
+We sequenced 90 total individuals.  Below is a table of metadata (that exists) for each sample.
+
 |Sample ID|Region|Ecotype|Wild/Sel|Pop |Lat|Long|Temp|Sal|Pop ID|Sample ID|Length|Sex|NOTES|
 |---|---|---|--|----|---|---|---|---|---|---|---|---|---|
 |LM_1|Mexico|High|W|Laguna Madre| 26°33'32.00"N| 97°21'54.00"W|28.9|26|LM|1|97|F||
@@ -90,3 +96,14 @@
 |NG_NH2F6|RU Inbred||I|RU Inbred|||||NG|NH2F6|||selfing progeny, female|
 |NG_NH2F8|RU Inbred||I|RU Inbred|||||NG|NH2F8|||selfing progeny, female|
 |NG_NH2M1|RU Inbred||I|RU Inbred|||||NG|NH2M1|||selfing progeny, male|
+
+## Sequencing Quality Reports
+
+A `MultiQC` report has been generated incorporating information about number of reads, trimming, mapping, and deduplication.  To view the full report, download the entire contents of [multiqc](./multiqc), and open the html file in a web browser.  I have included a few more informative graphics below.
+
+### Sequence Quality
+
+In general, we obtained high quality sequence data.  Below, is a summary of mean quality scores for both trimmed and untrimmed data:
+
+[!alt text](./images/MeanQuality.png)
+
