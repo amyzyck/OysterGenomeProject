@@ -107,3 +107,18 @@ In general, we obtained high quality sequence data.  Below, is a summary of mean
 
 ![alt text](./images/MeanQuality.png)
 
+We also had consistency in GC content across all samples.
+
+![alt text](./images/GCcontent.png)
+
+### Trimming
+
+Because of the relatively high quality of sequence, trimming was minimal for most samples.  It is important to note the large variance in the number of reads (before and after trimming) across samples.
+
+![alt text](./images/TrimStats.png)
+
+### Mapping
+
+The relative read mappings also reflect this large difference in the number of reads per sample.
+
+![alt text](./images/PicardStats.png)
