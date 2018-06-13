@@ -105,5 +105,5 @@ A `MultiQC` report has been generated incorporating information about number of 
 
 In general, we obtained high quality sequence data.  Below, is a summary of mean quality scores for both trimmed and untrimmed data:
 
-[!alt text](./images/MeanQuality.png)
+![alt text](./images/MeanQuality.png)
 
