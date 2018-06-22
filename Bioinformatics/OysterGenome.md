@@ -1,3 +1,8 @@
+Oyster Genome Project
+================
+Jon Puritz
+5/7/2018
+
 Oyster Genome Bioinformatics
 ============================
 
@@ -282,14 +287,13 @@ vcftools --vcf TRSdp5g5.recode.vcf --max-missing 0.75 --recode --recode-INFO-all
 Next, split the VCF files into nDNA and mtDNA for further filtering
 
 ``` bash
-head -10000 TRSdp5g75.recode.vcf | mawk '/#/' > header
-mawk '!/NC_007175.2/' TRSdp5g75.recode.vcf > TRSdp5g75.nDNA.vcf
-cat header <(head -20000 TRSdp5g75.recode.vcf | mawk '/NC_007175.2/') > TRSdp5g75.mtDNA.vcf
+zcat TRSdp5g75.recode.vcf.gz| mawk '!/NC_007175.2/' > TRSdp5g75.nDNA.vcf
 ```
 
-    ## head: cannot open ‘TRSdp5g75.recode.vcf’ for reading: No such file or directory
-    ## mawk: cannot open TRSdp5g75.recode.vcf (No such file or directory)
-    ## head: cannot open ‘TRSdp5g75.recode.vcf’ for reading: No such file or directory
+``` bash
+zcat TRSdp5g75.recode.vcf.gz | head -10000 | mawk '/#/' > header
+cat header <(zcat TRSdp5g75.recode.vcf.gz |head -20000| mawk '/NC_007175.2/') > TRSdp5g75.mtDNA.vcf
+```
 
 ``` bash
 vcffilter -s -f "AB < 0.001" TRSdp5g75.mtDNA.vcf | vcffilter -s -f "QUAL / DP > 0.25" > TRSdp5g75.mtDNA.F.vcf
@@ -308,13 +312,12 @@ vcftools --vcf TRSdp5g75mtDNAF.prim --remove-indels --recode --recode-INFO-all -
     ##  --recode
     ##  --remove-indels
     ## 
-    ## After filtering, kept 0 out of 0 Individuals
+    ## After filtering, kept 90 out of 90 Individuals
     ## Outputting VCF file...
-    ## After filtering, kept 0 out of a possible 0 Sites
-    ## File does not contain any sites
-    ## Run Time = 0.00 seconds
+    ## After filtering, kept 1337 out of a possible 1375 Sites
+    ## Run Time = 1.00 seconds
 
-``` bash{eval=false}
+``` basheval
 ./dDocent_ngs_filters TRSdp5g75.nDNA.vcf TRSdp5g75FnDNA
 ```
 
