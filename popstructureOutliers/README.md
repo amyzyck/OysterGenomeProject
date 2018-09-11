@@ -1,7 +1,8 @@
 ### We’re going to work with
 
 * SNP.TRSdp5g95FnDNAmaf05.vcf.gz
-  * This file has been filtered for MAF > 0.05, and missing data < 5%.
+  * This file has been filtered for MAF > 0.05, and missing data < 5%. The 5% missing data is for a locus.  For this data set, I didn't filter any individuals for missing data because our sample size was so small already.  The bioinformatics page has a graph of the missingness per individual (before MAF and missingness filtering) https://github.com/jpuritz/OysterGenomeProject/blob/master/Bioinformatics/OysterGenome_files/figure-markdown_github/unnamed-chunk-14-1.svg
+Also of note is that this VCF contains all the individuals, including the aquaculture and inbred lines.
 * SNP.TRSdp5g75mtDNA.recode.vcf (mitochondria)
   * Filtered SNPs from mitochondrial genome
 * INDELs.TRSdp5g75FnDNA.vcf.gz (indels)
