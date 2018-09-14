@@ -10,7 +10,9 @@ Also of note is that this VCF contains all the individuals, including the aquacu
 
 ### Our plan:
 * remove triallelic sites
+* filter for sites that have 0% missing 
 * thin SNPs for LD based on recommendation of (Privé et al. 2018) using bigsnpR package.
+* output thinned SNP matrix for future analysis and a file that lists which SNPs they are
 * Conduct Principal Components of population structure (was also going to compare to mitochondria)
 * Use thinned SNPs to calculate null distribution for OutFLANK and PCAdapt, then conduct outlier tests on all SNPs. (If you are planning any other methods, let’s make sure to use the same set of thinned SNPs)
 * Once I get environmental data, will also calculate SNP-environment associations for methods that aren’t sensitive to recombination rate variation (see manuscript I shared with you)
@@ -21,6 +23,8 @@ Example of a triallelic site:
 ```
 zgrep "0|2" SNP.TRSdp5g95FnDNAmaf05.vcf.gz | head -n1
 ```
-Uncertain from head of VCF file what order the genotype probabilities are output in.
+https://gist.github.com/inutano/f0a2f5c219ab4920c5b5
 
-Number of triallelic sites:
+If a call cannot be made for a sample at a given locus
+'.' should be specified for each missing allele in the GT field
+e.g. './.' for a diploid genotype and '.' for haploid genotype
