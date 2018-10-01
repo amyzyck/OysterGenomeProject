@@ -665,8 +665,8 @@ Now let's see some plots of the principle components
 
 ```R
 > plot(svd13, type = "scores") +
-  aes(shape = fbm.allData$fam$pop.id[attr(svd13, "subset")], color = fbm.allData$fam$pop.id[attr(svd13, "subset")]) +
-  scale_shape_manual(values=1:nlevels(fbm.allData$fam$pop.id[attr(svd13, "subset")])) +
+  aes(shape = fbm.allData$fam$pop.id, color = fbm.allData$fam$pop.id) +
+  scale_shape_manual(values=1:nlevels(fbm.allData$fam$pop.id)) +
   geom_point(size=4) +
   labs(shape = "Population", color = "Population")
 > dev.copy(png, "13PCsPC1-2.png")
@@ -795,7 +795,7 @@ Now we can take a look at some of the plots
 ```R
 > plot(subset10_svd4, type = "scores") +
     aes(shape = fbm.random10$fam$pop.id, color = fbm.random10$fam$pop.id) +
-    scale_shape_manual(values = 1:nlevels(fbm.random10$fam$pop.id[attr(subset10_svd4, "subset")])) +
+    scale_shape_manual(values = 1:nlevels(fbm.random10$fam$pop.id)) +
     geom_point(size=4) +
     labs(shape = "Population", color = "Population")
 > dev.copy(png, "subset10_svd4_PC1-2.png")
@@ -920,7 +920,7 @@ Plot the results and save your plots
 ```R
 > plot(subset50_svd4, type = "scores") +
     aes(shape = fbm.random50$fam$pop.id, color = fbm.random50$fam$pop.id) +
-    scale_shape_manual(values = 1:nlevels(fbm.random50$fam$pop.id[attr(subset50_svd4, "subset")])) +
+    scale_shape_manual(values = 1:nlevels(fbm.random50$fam$pop.id)) +
     geom_point(size=4) +
     labs(shape = "Population", color = "Population")
 > dev.copy(png, "subset50_svd4_PC1-2.png")
