@@ -15,8 +15,7 @@ library(ggplot2)
 
 ```{r thinned, fig.width=8, fig.height=8}
 # load data
-pcthinned <- readRDS("fullDatasetThinned13PCs.rds")
-ls()
+pcthinned <- readRDS("10kRandomSubsetThinned13PCs.rds")
 str(pcthinned)
 thinnedSNPs <- read.table("allLociLocationsAfterThinning13PCs.txt")
 head(thinnedSNPs)
