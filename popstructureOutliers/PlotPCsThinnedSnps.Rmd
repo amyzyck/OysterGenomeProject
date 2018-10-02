@@ -22,13 +22,26 @@ thinnedSNPs <- read.table("allLociLocationsAfterThinning13PCs.txt")
 head(thinnedSNPs)
 
 # load individual data
-ind <- read.csv("modified_samplemetadata.csv")
-head(ind)
-str(ind)
-ind$pch <- as.numeric(ind$plot.id)
+ind0 <- read.csv("modified_samplemetadata.csv")
+head(ind0)
+str(ind0)
+
+
+ind_order <- read.table("ind_order_vcf.txt")
+colnames(ind_order) <- "Sample.ID"
+str(ind_order)
+
+data.frame(sort(ind0$Sample.ID), sort(ind_order$Sample.ID))
+
+ind <- merge(ind_order, ind0, by="Sample.ID", all.x=TRUE, all.y=TRUE)
+# check that 90 observations
+
 levels(ind$custom.id)
 ind <- ind[order(ind$custom.id),]
+ind$pch <- as.numeric(ind$custom.id)
+str(ind)
 head(ind)
+
 
 # Plot scores of individuals
 alph <- 0.8
