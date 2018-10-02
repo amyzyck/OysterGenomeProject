@@ -105,7 +105,7 @@ actually filter sites which have above a certain amount of alleles.
 VCFtools manual:
 
 ```
---min-alleles <integer> 
+--min-alleles <integer>
 --max-alleles <integer>
 
 Include only sites with a number of alleles greater than or equal to the "--min-alleles" value and less than or equal to the "--max-alleles" value. One of these options may be used without the other. 
@@ -305,9 +305,9 @@ Now I can add in the metadata with this data structure...
 ```R
 > metadata <- read.csv('SampleMetaData.csv')
 > fbm.allData <- list(genotype = G_FBM,
-                      fam = data.frame(sample.id=metadata$Sample.ID,
-                                       pop.id=metadata$Pop.ID,
-                                       sex = metadata$Sex),
+                      fam = data.frame(pop.id = metadata$custom.id,
+                                       color = metadata$color,
+                                       plot.id = metadata$plot.id),
                       map = data.frame(positions = allData$positions,
                                        chromosome = allData$chromosome))
 ```
@@ -570,14 +570,23 @@ Now let's see how it runs without these sites...
 > svd0 <- snp_autoSVD(subset_G_FBM,
                       infos.chr = allData$chromosome[-heteros],
                       infos.pos = allData$positions[-heteros],
+                      k = 13,
                       ncores=4)
 Phase of clumping at r2 > 0.2.. keep 480406 SNPs.
 
 Iteration 1:
 Computing SVD..
-8 long-range LD regions were detected..
+11 long-range LD regions were detected..
 
 Iteration 2:
+Computing SVD..
+0 long-range LD regions were detected..
+
+Iteration 3:
+Computing SVD..
+0 long-range LD regions were detected..
+
+Iteration 4:
 Computing SVD..
 
 Converged!
@@ -585,8 +594,7 @@ Converged!
 
 IT WORKED! So, let's see some plots
 
-## Output Thinned SNP Matrix for Future Analysis and a File That Lists and 
-## Identifies Them
+## Output Thinned SNP Matrix for Future Analysis and a File That Lists and Identifies Them
 
 I will write the locations of the SNPs that remained in the character matrix
 after removing SNPs where all individuals were heterozygotes and SNPs that were
@@ -594,14 +602,15 @@ pruned. I will write to another file all of the locations of the SNPs that were
 removed (as described above) into another file.
 
 ```R
-write(attr(svd0, "subset"), "remainingSNPAfterPruning.txt")
+write(paste(allData$chromosome[attr(svd0, "subset")],
+            allData$positions[attr(svd0, "subset")], sep='_'),
+      "allLociLocationsAfterThinning13PCs.txt")
 
 all_heteros_prunedSNPs <- which(!c(1:ncol(G_FBM)) %in% attr(svd0, "subset"))
 write(all_heterozygotes_prunedSNPs, "allHeterozygoteAndPrunedSNPs.txt")
 ```
 
-## Conduct Principal Components of population structure (was also going to
-## compare to mitochondria)
+## Conduct Principal Components of population structure (was also going to compare to mitochondria)
 
 ```R
 # Scree plot
@@ -664,10 +673,11 @@ Converged!
 Now let's see some plots of the principle components
 
 ```R
-> plot(svd13, type = "scores") +
+> plot(svd0, type = "scores") +
   aes(shape = fbm.allData$fam$pop.id, color = fbm.allData$fam$pop.id) +
-  scale_shape_manual(values=1:nlevels(fbm.allData$fam$pop.id)) +
   geom_point(size=4) +
+  scale_shape_manual(values=1:nlevels(fbm.allData$fam$pop.id)) +
+  scale_color_manual(values = unique(fbm.allData$fam$color)) +
   labs(shape = "Population", color = "Population")
 > dev.copy(png, "13PCsPC1-2.png")
 > dev.off()
@@ -715,7 +725,7 @@ Now let's see some plots of the principle components
 > plot(svd0, type = "loadings", loadings = 1:4, coeff = 0.6)
 ```
 
-Set of random snps (10000, 50000)
+Set of random snps (10000, 50000). I will do set.seed(233) so that the same samples may be found when doing this same analysis later.
 
 ```R
 # Load the data and metadata...
@@ -729,8 +739,9 @@ Set of random snps (10000, 50000)
 > noheteros_allData <- list(G = allData$G[-heteros, ],
                             positions = allData$positions[-heteros],
                             chromosomes = allData$positions[-heteros])
-# Generate 10K random samples of loci to include in the analysis and subset the
-# dataset.
+# Set seed and generate 10K random samples of loci to include in the analysis 
+# and subset the dataset.
+> set.seed(10)
 > random10 <- sample(1:nrow(noheteros_allData$G), 10000)
 > random10_allData <- list(G = noheteros_allData$G[random10, 1:90],
                            positions = noheteros_allData$positions[random10],
@@ -846,7 +857,7 @@ Now we can take a look at some of the plots
 Now let's do the same for 50K random samples.
 
 ```R
-
+> set.seed(50)
 > random50 <- sample(1:nrow(noheteros_allData$G), 50000)
 > random50_allData <- list(G = noheteros_allData$G[random50, 1:90],
                            positions = noheteros_allData$positions[random50],
