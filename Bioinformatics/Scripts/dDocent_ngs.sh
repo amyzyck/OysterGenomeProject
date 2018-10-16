@@ -2,7 +2,7 @@
 export LC_ALL=en_US.UTF-8
 
 ##########dDocent##########
-VERSION='2.7.0'
+VERSION='2.6.1'
 #This script serves as an interactive bash wrapper to QC, assemble, map, and call SNPs from double digest RAD (SE or PE), ezRAD (SE or PE) data, or SE RAD data.
 #It requires that your raw data are split up by tagged individual and follow the naming convention of:
 
@@ -399,18 +399,64 @@ if [ "$SNP" != "no" ]; then
 
 ###New implementation of SNP calling here to save on memory	
 	call_genos(){
-	samtools view -@$FB2 -b -1 -L mapped.$1.bed -o split.$1.bam filter.merged.bam
-	samtools index split.$1.bam
-	freebayes -b split.$1.bam -t mapped.$1.bed -v raw.$1.vcf -f reference.fasta -m 5 -q 5 -E 3 --min-repeat-entropy 1 -n 10
-	rm split.$1.bam*
+		samtools view -@$FB2 -b -1 -L mapped.$1.bed -o split.$1.bam filter.merged.bam
+		samtools index split.$1.bam
+		freebayes -b split.$1.bam -t mapped.$1.bed -v raw.$1.vcf -f reference.fasta -m 5 -q 5 -E 3 --min-repeat-entropy 1 -n 10
+		if [ $? -eq 0 ]; then
+    			echo "freebayes instance $1 completed successfully." >> freebayes.log
+		else
+    			echo -e "\n\nERROR: freebayes instance DID NOT COMPLETE\n\nSee below:"
+				echo $? > freebayes.error
+				exit 1
+		fi	
+		rm split.$1.bam*
 	}
 	export -f call_genos
 
-	ls mapped.*.bed | sed 's/mapped.//g' | sed 's/.bed//g' | shuf | parallel --env call_genos --memfree $MAXMemory -j $NUMProc --no-notice call_genos {}
-####	
+	ls mapped.*.bed | sed 's/mapped.//g' | sed 's/.bed//g' | shuf | parallel --bar --halt now,fail=1 --env call_genos --memfree $MAXMemory -j $NUMProc --no-notice "call_genos {} 2> /dev/null" 
 
+	if [ -f "freebayes.error" ]; then
+               	echo -e "\nA previous freebayes instance failed.  dDocent will now recalibrate run parameters to use less memory.\n"
+		rm freebayes.error
+		LIM=$(( $NUMProc * 2 ))
+
+        FB2=$(( $NUMProc / 10 ))
+        	export FB2
+		echo "Using FreeBayes to call SNPs again"
+		NumP=$(( $NUMProc / 4 ))
+		NumP=$(( $NumP * 3 ))
+		ls mapped.*.bed | sed 's/mapped.//g' | sed 's/.bed//g' | shuf | parallel --bar --halt now,fail=1 --env call_genos --memfree $MAXMemory -j $NumP --no-notice "call_genos {} 2> /dev/null" 
+    fi
+    
+    if [ -f "freebayes.error" ]; then
+		echo -e "\nA previous freebayes instance failed again.  dDocent will now recalibrate run parameters to use even less memory.\n"
+        rm freebayes.error		
+            	NumP=$(( $NumP / 4 ))
+                NumP=$(( $NumP * 3 ))
+		echo "Using FreeBayes to call SNPs again"
+        ls mapped.*.bed | sed 's/mapped.//g' | sed 's/.bed//g' | shuf | parallel --bar --halt now,fail=1 --env call_genos --memfree $MAXMemory -j $NumP --no-notice "call_genos {} 2> /dev/null"
+	fi
+
+	if [ -f "freebayes.error" ]; then
+		echo -e "\n\n\nFreeBayes has now failed a third  time, likely because of memory issues.  More resources must be allocated to finish this analysis."
+		ERROR3=1
+		export ERROR3
+	else
+            	ERROR3=0
+		export ERROR3
+        fi
 
 	rm mapped.*.bed 
+
+	mv raw.1.vcf raw.01.vcf 2>/dev/null
+	mv raw.2.vcf raw.02.vcf 2>/dev/null
+	mv raw.3.vcf raw.03.vcf 2>/dev/null
+	mv raw.4.vcf raw.04.vcf 2>/dev/null
+	mv raw.5.vcf raw.05.vcf 2>/dev/null
+	mv raw.6.vcf raw.06.vcf 2>/dev/null
+	mv raw.7.vcf raw.07.vcf 2>/dev/null
+	mv raw.8.vcf raw.08.vcf 2>/dev/null
+	mv raw.9.vcf raw.09.vcf 2>/dev/null
 
 	vcfcombine raw.*.vcf | sed -e 's/	\.\:/	\.\/\.\:/g' > TotalRawSNPs.vcf
 
@@ -420,7 +466,7 @@ if [ "$SNP" != "no" ]; then
 
 	mv raw.*.vcf ./raw.vcf
 
-	echo "Using VCFtools to parse TotalRawSNPS.vcf for SNPs that are called in at least 90% of individuals"
+	echo -e "\nUsing VCFtools to parse TotalRawSNPS.vcf for SNPs that are called in at least 90% of individuals"
 	vcftools --vcf TotalRawSNPs.vcf $VCFGTFLAG 0.9 --out Final --recode --non-ref-af 0.001 --max-non-ref-af 0.9999 --mac 1 --minQ 30 --recode-INFO-all &>VCFtools.log
 fi
 
