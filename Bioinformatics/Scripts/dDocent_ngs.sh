@@ -2,7 +2,7 @@
 export LC_ALL=en_US.UTF-8
 
 ##########dDocent##########
-VERSION='2.2.22'
+VERSION='2.7.0'
 #This script serves as an interactive bash wrapper to QC, assemble, map, and call SNPs from double digest RAD (SE or PE), ezRAD (SE or PE) data, or SE RAD data.
 #It requires that your raw data are split up by tagged individual and follow the naming convention of:
 
@@ -10,12 +10,12 @@ VERSION='2.2.22'
 
 #Prints out title and contact info
 echo -e "dDocent" $VERSION "\n"
-echo -e "Contact jpuritz@gmail.com with any problems \n\n "
+echo -e "Contact jpuritz@uri.edu with any problems \n\n "
 
 ###Code to check for the required software for dDocent
 
 echo "Checking for required software"
-DEP=(freebayes mawk bwa samtools vcftools rainbow gnuplot gawk seqtk cd-hit-est bamToBed bedtools parallel vcfcombine bamtools pearRM)
+DEP=(freebayes mawk bwa samtools vcftools rainbow gnuplot seqtk cd-hit-est bamToBed bedtools parallel vcfcombine pearRM fastp)
 NUMDEP=0
 for i in "${DEP[@]}"
 do
@@ -26,20 +26,6 @@ do
     		NUMDEP=$((NUMDEP + 1))
 	fi
 done
-
-if find ${PATH//:/ } -maxdepth 1 -name trimmomatic*jar 2> /dev/null| grep -q 'trim' ; then
-	TRIMMOMATIC=$(find ${PATH//:/ } -maxdepth 1 -name trimmomatic*jar 2> /dev/null | head -1)
-	else
-    echo "The dependency trimmomatic is not installed or is not in your" '$PATH'"."
-    NUMDEP=$((NUMDEP + 1))
-	fi
-
-if find ${PATH//:/ } -maxdepth 1 -name TruSeq3-PE-2.fa 2> /dev/null | grep -q 'Tru' ; then
-	ADAPTERS=$(find ${PATH//:/ } -maxdepth 1 -name TruSeq2-PE.fa 2> /dev/null | head -1)
-	else
-    echo "The file listing adapters (included with trimmomatic) is not installed or is not in your" '$PATH'"."
-    NUMDEP=$((NUMDEP + 1))
-    fi
 
 SAMV1=$(samtools 2>&1 >/dev/null | grep Ver | sed -e 's/Version://' | cut -f2 -d " " | sed -e 's/-.*//' | cut -c1)
 SAMV2=$(samtools 2>&1 >/dev/null | grep Ver | sed -e 's/Version://' | cut -f2 -d " " | sed -e 's/-.*//' | cut -c3)
@@ -78,7 +64,14 @@ FREEB=(`freebayes | grep -oh 'v[0-9].*' | cut -f1 -d "." | sed 's/v//' `)
         	echo "The version of FreeBayes installed in your" '$PATH' "is not optimized for dDocent."
         	echo "Please install at least version 1.0.0"
         	exit 1
-        fi         	
+        fi  
+SEQTK=( `seqtk 2>&1  | grep Version | cut -f2 -d ":" |  sed 's/1.[1-9]-r//g' | sed 's/-dirty//g' `)
+	if [ "$SEQTK" -lt "102" ]; then
+		echo "The version of seqtk installed in your" '$PATH' "is not optimized for dDocent."
+        	echo "Please install at least version 1.2-r102-dirty"
+        	exit 1
+	fi
+	
 VCFTV=$(vcftools | grep VCF | grep -oh '[0-9]*[a-z]*)$' | sed 's/[a-z)]//')
 	if [ "$VCFTV" -lt "10" ]; then
         	echo "The version of VCFtools installed in your" '$PATH' "is not optimized for dDocent."
@@ -107,12 +100,11 @@ BTC=$( bedtools --version | mawk '{print $2}' | sed 's/v//g' | cut -f1,2 -d"." |
 		exit 1	
 	fi
 		
-if ! awk --version | fgrep -v GNU &>/dev/null; then
-         awk=gawk
-    else
-         awk=awk
+if ! sort --version | fgrep GNU &>/dev/null; then
+	sort=gsort
+else
+	sort=sort
 fi
-
 
 if [ $NUMDEP -gt 0 ]; then
 	echo -e "\nPlease install all required software before running dDocent again."
@@ -131,11 +123,23 @@ exit 1
 fi
 
 #Count number of individuals in current directory
-NumInd=$(ls *.F.fq.gz | wc -l)
+NumInd=$(ls *.F.fq.gz 2> /dev/null | wc -l)
 NumInd=$(($NumInd - 0))
 
+#Test for file limits for current user and reset if necessary
+
+Flimit=$(ulimit -n)
+export Flimit
+
+if [ "$Flimit" != "unlimited" ]; then
+        Nlimit=$(( $NumInd * 10 ))
+        if [ "$Flimit" -lt "$Nlimit" ]; then
+                ulimit -n $Nlimit
+        fi
+fi
+
 #Create list of sample names
-ls *.F.fq.gz > namelist
+ls *.F.fq.gz > namelist 2> /dev/null
 sed -i'' -e 's/.F.fq.gz//g' namelist
 #Create an array of sample names
 NUMNAMES=$(mawk '/_/' namelist | wc -l)
@@ -147,6 +151,14 @@ else
 	echo "Please rename individuals to: Locality_Individual.F.fq.gz"
 	echo "For example: LocA_001.F.fq.gz"
 	exit 1
+fi
+
+if [[ "$1" == "help" || "$1" == "-help" || "$1" == "--help" || "$1" == "-h" || "$1" == "--h" ]]; then
+
+	echo -e "\nTo run dDocent, simply type '"dDocent"' and press [ENTER]"
+	echo -e "\nAlternatively, dDocent can be run with a configuration file.  Usuage is:"
+	echo -e "\ndDocent config_file\n\n"
+	exit 0
 fi
 
 #Wrapper for main program functions.  This allows the entire file to be read first before execution
@@ -166,10 +178,34 @@ echo -e "\ndDocent run started" $STARTTIME "\n"
 #Checks if a configuration file is being used, if not asks for user input
 if [ -n "$1" ]; then
 	CONFIG=$1
-	NUMProc=$(grep -A1 Processor $CONFIG | tail -1)
-    	MAXMemory=$(grep -A1 Memory $CONFIG | tail -1)
+	if [ ! -f $CONFIG ]; then
+		echo -e "\nThe configuration file $CONFIG does not exist."
+		exit 1
+	fi
+	
+	NUMProc=$(grep -A1 Processor $CONFIG 2> /dev/null | tail -1 ) 
+	if [[ $NUMProc -lt 999999 && $NUMProc -gt 1 ]]; then 
+		MAXMemory1=$(grep -A1 Memory $CONFIG | sed 's/[g,G]//g' | tail -1)
+	else
+		echo -e "\nConfiguration file is not properly configured.  Please see example on dDocent.com or the dDocent GitHub page."
+		exit 1
+	fi
+	MAXMemory=$(( $MAXMemory1 / $NUMProc ))G
+	if [[ "$OSTYPE" == "darwin"* ]]; then
+		MAXMemory=0
+		MAXMemory1=0
+	fi
 	TRIM=$(grep -A1 Trim $CONFIG | tail -1)
 	ASSEMBLY=$(grep -A1 '^Assembly' $CONFIG | tail -1)
+	CUTOFF=$(grep -A1 'Minimum within' $CONFIG  2> /dev/null | tail -1)
+	if [[ $CUTOFF -lt 9999 && $CUTOFF -gt 0 ]]; then 
+		CUTOFF2=$(grep -A1 'Minimum number' $CONFIG | tail -1)
+	else
+		if [ "$ASSEMBLY" == "yes" ]; then
+			echo -e "\nConfiguration file is not properly configured.  Please see example on dDocent.com or the dDocent GitHub page."
+			exit 1
+		fi
+	fi
 	ATYPE=$(grep -A1 Type $CONFIG | tail -1)
 	simC=$(grep -A1 Simi $CONFIG | tail -1)
 	MAP=$(grep -A1 Mapping_R $CONFIG | tail -1)
@@ -178,7 +214,11 @@ if [ -n "$1" ]; then
 	optO=$(grep -A1 Gap $CONFIG | tail -1)
 	SNP=$(grep -A1 SNP $CONFIG | tail -1)
 	MAIL=$(grep -A1 Email $CONFIG | tail -1)
-	if [ "$ASSEMBLY" == "no" ]; then
+	
+	if [ "$ASSEMBLY" == "yes" ] && [[ -z $CUTOFF || -z $CUTOFF2 ]]; then
+		
+		echo "dDocent will require input during the assembly stage.  Please wait until prompt says it is safe to move program to the background."	
+	else	
 		#Prints instructions on how to move analysis to background and disown process
 		echo "At this point, all configuration information has been entered and dDocent may take several hours to run." 
 		echo "It is recommended that you move this script to a background operation and disable terminal input and output."
@@ -188,9 +228,8 @@ if [ -n "$1" ]; then
 		echo "Type 'bg' without the quotes and press enter"
 		echo "Type 'disown -h' again without the quotes and press enter"
 		echo ""
-		echo "Now sit back, relax, and wait for your analysis to finish."
-	else
-		echo "dDocent will require input during the assembly stage.  Please wait until prompt says it is safe to move program to the background."
+		echo "Now sit back, relax, and wait for your analysis to finish"
+	
 	fi
 
 else
@@ -202,7 +241,7 @@ echo "Variables used in dDocent Run at" $STARTTIME >> dDocent.runs
 echo "Number of Processors" >> dDocent.runs
 echo $NUMProc >> dDocent.runs
 echo "Maximum Memory" >> dDocent.runs
-echo $MAXMemory >> dDocent.runs
+echo $MAXMemory1 | sed 's/[g,G]//g' >> dDocent.runs
 echo "Trimming" >> dDocent.runs
 echo $TRIM >> dDocent.runs
 echo "Assembly?" >> dDocent.runs
@@ -211,6 +250,20 @@ echo "Type_of_Assembly" >> dDocent.runs
 echo $ATYPE >> dDocent.runs
 echo "Clustering_Similarity%" >> dDocent.runs
 echo $simC >> dDocent.runs
+if [ -n "$CUTOFF" ]; then
+	echo "Minimum within individaul coverage level to include a read for assembly (K1)" >> dDocent.runs
+	echo $CUTOFF >> dDocent.runs
+else
+	echo "Minimum within individaul coverage level to include a read for assembly (K1)" >> dDocent.runs
+	echo "CUTOFF1_NOTSET" >> dDocent.runs
+fi
+if [ -n "$CUTOFF2" ]; then
+	echo "Minimum number of individuals a read must be present in to include for assembly (K2)" >> dDocent.runs
+	echo $CUTOFF2 >> dDocent.runs
+else
+	echo "Minimum number of individuals a read must be present in to include for assembly (K2)" >> dDocent.runs
+	echo "CUTOFF2_NOTSET" >> dDocent.runs
+fi
 echo "Mapping_Reads?" >> dDocent.runs
 echo $MAP >> dDocent.runs
 echo "Mapping_Match_Value" >> dDocent.runs
@@ -228,7 +281,7 @@ echo $MAIL >> dDocent.runs
 ##Section of logic statements that dictates the order and function of processing the pipeline
 
 if [[ "$TRIM" == "yes" && "$ASSEMBLY" == "yes" ]]; then
-        echo "Trimming reads and simultaneously assembling reference sequences"        
+        echo -e "\nTrimming reads and simultaneously assembling reference sequences"        
         TrimReads & 2> trim.log
         Assemble
         #setupRainbow 2> rainbow.log
@@ -236,7 +289,7 @@ if [[ "$TRIM" == "yes" && "$ASSEMBLY" == "yes" ]]; then
 fi
 
 if [[ "$TRIM" == "yes" && "$ASSEMBLY" != "yes" ]]; then
-        echo "Trimming reads"
+        echo -e "\nTrimming reads"
         TrimReads 2> trim.log
 fi                
                 
@@ -247,10 +300,10 @@ fi
 
 #Checks to see if reads will be mapped.
 if [ "$MAP" != "no" ]; then
-echo "Using BWA to map reads."
+echo -e "\nUsing BWA to map reads"
 	if [ reference.fasta -nt reference.fasta.fai ]; then
-        samtools faidx reference.fasta
-        bwa index reference.fasta &> index.log
+        samtools faidx reference.fasta &> index.log
+        bwa index reference.fasta >> index.log 2>&1
 	fi
 #dDocent now checks for trimmed read files before attempting mapping
         if [[ "$MAP" != "no" && ! -f "${NAMES[@]:(-1)}".R1.fq.gz ]]; then
@@ -260,12 +313,12 @@ echo "Using BWA to map reads."
         fi
 #This next section of code checks to see if the reference was assembled by dDocent 
 #and if so, modifies the expected insert length distribution for BWA's metric for proper pairing
-        if head -1 reference.fasta | grep -e 'dDocent' reference.fasta 1>/dev/null; then
+        if head -1 reference.fasta | grep -e 'dDocent_' reference.fasta 1>/dev/null; then
         	rm lengths.txt &> /dev/null
         	for i in "${NAMES[@]}";
         		do
         		if [ -f "$i.R.fq.gz" ]; then
-        		zcat $i.R.fq.gz | head -2 | tail -1 >> lengths.txt
+        		gunzip -c $i.R.fq.gz | head -2 | tail -1 >> lengths.txt
         		fi
         		done	
         	if [ -f "lengths.txt" ]; then
