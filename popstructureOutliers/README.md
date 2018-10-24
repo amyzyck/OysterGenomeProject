@@ -10,7 +10,12 @@ Also of note is that this VCF contains all the individuals, including the aquacu
 
 ### Our plan:
 * remove triallelic sites
-* filter for sites that have 0% missing 
+* filter for sites that have 0% missing data
+* filter for sites that have all heterozygotes
+
+* LD analysis
+  * 
+
 * thin SNPs for LD based on recommendation of (Privé et al. 2018) using bigsnpR package.
 * output thinned SNP matrix for future analysis and a file that lists which SNPs they are
 * Conduct Principal Components of population structure (was also going to compare to mitochondria)
