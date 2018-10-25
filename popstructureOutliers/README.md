@@ -36,10 +36,11 @@ Also of note is that this VCF contains all the individuals, including the aquacu
     * in addition, want a set of ~ 50,000 SNPs and 10,000 SNPs to compare for population structure
     that are a subset of the initial thinned set. These may be used for SNP chip.
   
-* Conduct Principal Components of population structure (was also going to compare to mitochondria)
-  * output from snp_autoSVD function
+* population structure
+  * Principal Components output from snp_autoSVD function
+  * compare and mak
   
-* 
+* Genome scans
   * Use thinned SNPs to calculate null distribution for OutFLANK and PCAdapt, then conduct outlier tests on all SNPs. (If you are planning any other methods, let’s make sure to use the same set of thinned SNPs)
   * Once I get environmental data, will also calculate SNP-environment associations for methods that aren’t sensitive to recombination rate variation (see manuscript I shared with you)
 
