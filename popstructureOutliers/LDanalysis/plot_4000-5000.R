@@ -31,7 +31,7 @@ mov_ave <- function(x_pos, y_response, window_size_bp){
   getmeanwindow <- function(j){
     lower <- (x_pos[j]-window_size_bp)
     upper <- (x_pos[j]+window_size_bp)
-    y_sub <- df$y_response[ which(x_pos < upper & x_pos > lower)]
+    y_sub <- df$y_response[which(x_pos < upper & x_pos > lower)]
       # this is 10x faster than using dplyr and >60x faster than 'for loop'
     return(mean(y_sub, na.rm=TRUE))
   }

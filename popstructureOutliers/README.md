@@ -9,18 +9,39 @@ Also of note is that this VCF contains all the individuals, including the aquacu
   * Filtered INDel variants with missing data of less than 25% allowed
 
 ### Our plan:
-* remove triallelic sites
-* filter for sites that have 0% missing data
-* filter for sites that have all heterozygotes
-
 * LD analysis
-  * 
-
-* thin SNPs for LD based on recommendation of (Privé et al. 2018) using bigsnpR package.
-* output thinned SNP matrix for future analysis and a file that lists which SNPs they are
+  * on original vcf file
+  * using vcftools
+  * Populationstructure/LD_decay (check folder)
+  * LD decay
+    * use this to help determine the window size for SNP thinning 
+    * 25, 50, 500, 1000, 2500, 5000, 10000, 30000, 50000 (for bigger sizes 100 bp window)
+  * LD Manhattan plot
+    * 4600-5000
+    * around 30000
+    
+* SNP thinning for population structure
+  * Population_structure/SNP_thinning
+  * Filtering in vcf tools
+    * remove triallelic sites
+    * filter for sites that have 0% missing data
+    * filter for sites that have all heterozygotes
+  * New VCF file name: 
+  * thin SNPs for LD based on recommendation of (Privé et al. 2018) using bigsnpR package.
+  * use clumping instead of pruning, and thin for long-range LD not captured by clumping
+  * thin on a window size where the correlation among SNPs < 0.1 or maybe 0.05
+    * based on prelim data that is 5000-XXX SNPs
+    * write a revised snp_autoSVD function to accoutn for window size in bp (not size in adjacent SNPs)
+  * output thinned SNP matrix for future analysis and a file that lists which SNPs they are
+    * in addition, want a set of ~ 50,000 SNPs and 10,000 SNPs to compare for population structure
+    that are a subset of the initial thinned set. These may be used for SNP chip.
+  
 * Conduct Principal Components of population structure (was also going to compare to mitochondria)
-* Use thinned SNPs to calculate null distribution for OutFLANK and PCAdapt, then conduct outlier tests on all SNPs. (If you are planning any other methods, let’s make sure to use the same set of thinned SNPs)
-* Once I get environmental data, will also calculate SNP-environment associations for methods that aren’t sensitive to recombination rate variation (see manuscript I shared with you)
+  * output from snp_autoSVD function
+  
+* 
+  * Use thinned SNPs to calculate null distribution for OutFLANK and PCAdapt, then conduct outlier tests on all SNPs. (If you are planning any other methods, let’s make sure to use the same set of thinned SNPs)
+  * Once I get environmental data, will also calculate SNP-environment associations for methods that aren’t sensitive to recombination rate variation (see manuscript I shared with you)
 
 
 ### Triallelic sites
