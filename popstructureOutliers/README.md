@@ -1,7 +1,7 @@
 ### We’re going to work with
 
-* SNP.TRSdp5g95FnDNAmaf05.vcf.gz
-  * This file has been filtered for MAF > 0.05, and missing data < 5%. The 5% missing data is for a locus.  For this data set, I didn't filter any individuals for missing data because our sample size was so small already.  The bioinformatics page has a graph of the missingness per individual (before MAF and missingness filtering) https://github.com/jpuritz/OysterGenomeProject/blob/master/Bioinformatics/OysterGenome_files/figure-markdown_github/unnamed-chunk-14-1.svg
+* Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz
+  * This filtered SNPs with a minor allele frequency> 0.05 and no missing data, 2 alleles  The bioinformatics page has a graph of the missingness per individual (before MAF and missingness filtering) https://github.com/jpuritz/OysterGenomeProject/blob/master/Bioinformatics/OysterGenome_files/figure-markdown_github/unnamed-chunk-14-1.svg
 Also of note is that this VCF contains all the individuals, including the aquaculture and inbred lines.
 * SNP.TRSdp5g75mtDNA.recode.vcf (mitochondria)
   * Filtered SNPs from mitochondrial genome
@@ -56,61 +56,27 @@ If a call cannot be made for a sample at a given locus
 '.' should be specified for each missing allele in the GT field
 e.g. './.' for a diploid genotype and '.' for haploid genotype
 
-### Files in KITT server directory (~/popstructureOutliers) being used in this directory and descriptions of those files.
-* The following were used to create vcf files of SNPs after thinning and subsets
-  of SNPs:
-  * __10KRandomSNPs13PCs.txt__ - Chromosome location and positions (tab separated)
-    of 10K randomly selected SNPs from the full dataset of thinned SNPs.
-  * __10KThinnedRandomSNPs13PCs.txt__ - Chromosome location and positions (tab
-    separated) of a subset of thinned SNPs from the 10K randomly selected SNPs.
-  * __50KRandomSNPs13PCs.txt__ - Chromosome location and positions (tab separated)
-    of 50K randomly selected SNPs from the full dataset of thinned SNPs.
-  * __50KThinnedRandomSNPs13PCs.txt__ - Chromosome location and positions (tab
-    separated) of a subset of thinned SNPs from the 10K randomly selected SNPs.
-  * __allLociLocationsAfterThinning13PCs_test.txt__ - Chromosome location and
-    positions (tab separated) of a subset of thinned SNPs from the 10K randomly
-    selected SNPs.
+# Files on KITT server and a description of their contents
+
+* __Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz__ - Copy of file in the VCF_files directory.
+* __exome__ - Folder containing ...
+* __genotypeMatrix.rds__ - R object containing the conversion of Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz to a genotype matrix, chromosome labels positions of all loci minus the fixed heterozygote sites.
+* __genotypeMatrixAndMetadata.rds__ - R object containing the data from genotypeMatrix.rds along with metadata from modifiedColors_samplemetadata.csv
+* __The following files contain LD calculations with using different physical distance windows which can be seen in the file name. These were created using ldAnalysis.sh__
+    1. __geno_ld_window_200-250.geno.ld__
+    2. __geno_ld_window_4500-5000.geno.ld__
+    3. __geno_ld_window_450-500.geno.ld__
+    4. __geno_ld_window_49500-50000.geno.l__
+    5. __geno_ld_window_50-50.geno.ld__
+    6. __geno_ld_window_9500-10000.geno.ld__
+    7. __geno_ld_window_99500-100000.geno.ld__
+    8. __geno_ld_window_499500-500000.geno.ld__
 * __INDELs.TRSdp5g75FnDNA.vcf.gz__ - Copy of file in the VCF_files directory.
-* __matrixAndMetadata.rds__ - Genotype matrix, positions and chromosome of
-  positions generated from the
-  SNP.TRSdp5g95FnDNAmaf05_min-allele0_max-allele2_noMissingData.vcf.gz vcf file
+* __ldAnalysis.sh__
+* __modifiedColors_samplemetadata.csv__
+* __nohup.out__
+* __populationStructureScript.R__
 * __README.md__
 * __SampleMetaData.csv__ - SampleMetaData.md file found on github repo converted
   to .csv format.
-* __SNP.TRSdp5g95FnDNAmaf05_10KRandomSNPs13PCs.log__ - Output from VCFtools for
-  the corresponding file SNP.TRSdp5g95FnDNAmaf05_10KRandomSNPs13PCs.vcf.gz
-* __SNP.TRSdp5g95FnDNAmaf05_10KRandomSNPs13PCs.vcf.gz__ - vcf file containing
-  the subset of 10K SNPs.
-* __SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs.log__ - Output from
-  VCFtools for the corresponding file
-  SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs.vcf.gz
-* __SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs.vcf.gz__ - vcf file
-  containing the SNPs which remained after thinning the subset of 10K SNPs.
-* __SNP.TRSdp5g95FnDNAmaf05_50KRandomSNPs13PCs.log__ - Output from VCFtools for
-  the corresponding file SNP.TRSdp5g95FnDNAmaf05_50KRandomSNPs13PCs.vcf.gz
-* __SNP.TRSdp5g95FnDNAmaf05_50KRandomSNPs13PCs.vcf.gz__ - vcf file containing
-  the subset of 50K SNPs.
-* __SNP.TRSdp5g95FnDNAmaf05_50KThinnedRandomSNPs13PCs.log__ - Output from
-  VCFtools for the corresponding file
-  SNP.TRSdp5g95FnDNAmaf05_50KThinnedRandomSNPs13PCs.vcf.gz
-* __SNP.TRSdp5g95FnDNAmaf05_50KThinnedRandomSNPs13PCs.vcf.gz__ - vcf file
-  containing the SNPs which remained after thinning the subset of 50K SNPs.
-* __SNP.TRSdp5g95FnDNAmaf05_AfterThinning13PCs.vcf.gz__ - vcf file
-  containing the SNPs which remained after thinning the full set of SNPs.
-* __SNP.TRSdp5g95FnDNAmaf05allLociLocationsAfterThinning.log__ - Output from
-  VCFtools for the corresponding file
-  SNP.TRSdp5g95FnDNAmaf05_AfterThinning13PCs.vcf.gz
-* __SNP.TRSdp5g95FnDNAmaf05_min0_max2.log__ - Output from VCFtools when
-  filtering for out the tri-allelic sites.
-* __SNP.TRSdp5g95FnDNAmaf05_min0_max2_noMissing.log__ - Output from VCFtools
-  when filtering for out the tri-allelic sites and any sites which had any
-  missing data.
-* __SNP.TRSdp5g95FnDNAmaf05_min3_max3.log__ - Output from VCFtools when filtering for only the tri-allelic sites.
-* __SNP.TRSdp5g95FnDNAmaf05_min-allele0_max-allele2_noMissingData.vcf.gz__ -
-  'SNP.TRSdp5g95FnDNAmaf05.vcf.gz' filtered further to exclude any tri-allelic
-  sites as well as any sites that had any missing data.
-* __SNP.TRSdp5g95FnDNAmaf05_min-allele0_max-allele2.vcf.gz__ -
-  'SNP.TRSdp5g95FnDNAmaf05.vcf.gz' filtered further to exclude any tri-allelic
-  sites.
-* __SNP.TRSdp5g95FnDNAmaf05_min-allele3_max-allele3.vcf.gz__ - vcf file containing only the tri-allelic sites.
 * __SNP.TRSdp5g95FnDNAmaf05.vcf.gz__ - Copy of file in the VCF_files directory.
