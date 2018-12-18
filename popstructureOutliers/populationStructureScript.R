@@ -2,19 +2,25 @@
 #
 # File      : populationStructureScript.R 
 # History   : 10/10/2018  Created by K Bodie Weedop (KBW)
+#           : 10/11/2018 KBW - continued the analysis using OutFLANK
+#           : 12/11/2018 KBW - consolidated code into a few functions to 
+#                              streamline the process of data preparation.
+#           : 12/17/2018 KBW - Wrapper added to run full analysis and 
+#                              subsetting of data with a shell command. 
 #
 ###############################################################################
 #
 # This script is the full script going from the original VCF file
-# SNP.TRSdp5g95FnDNAmaf05_min-allele0_max-allele2_noMissingData.vcf.gz) to a
+# Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz) to a
 # genotype matrix, combining this matrix with metadata (loci positions,
 # chromosomal locations and available data on individuals).
 #
 # After converting the matrix, the script will go through the process of
-# performing a PCA on the full genotype matrix using the 'pcadapt' package.
-#
-# This script will also go through the process of using the 'bigsnpr' package to
-# thin SNPs, remove long-range LD regions and perform a PCA on the data. 
+# performing these various analyses:
+#   - PCA on full genotype matrix (SNPs thinned and long range LD regions 
+#     removed)
+#   - Subset data to get 20K and 50K random SNPs from the preprocessed data
+#   - Write all R objects and txt files for saving the data.
 #
 ###############################################################################
 
@@ -24,159 +30,160 @@ library(pcadapt)
 library(bigsnpr)
 library(ggplot2)
 
-# read the VCF file using the 'vcfR' package
-vcf <- read.vcfR('SNP.TRSdp5g95FnDNAmaf05_min-allele0_max-allele2_noMissingData.vcf.gz')
+# Data preprocessing
 
-# Load in metadata on individuals
-metadata <- read.csv('modified_SampleMetaData.csv')
+# First thing to be done is converting the .vcf file to a genotype matrix which
+# can be done using this function. However, this takes a while if you have a
+# large .vcf file so my suggestion is to run this function using a shell script
+# of some kind and have it run in the background on some server while you do
+# other things. 
 
-# Grab the metadata from the VCF file
-geno <- vcf@gt[,-c(1)]
-# Get the positions of the SNPs. Positions in bp.
-POS <- getPOS(vcf)
-# Get chromosome information.
-CHR <- getCHROM(vcf)
+# If you do run it on a server, you will come back to a saved R object named
+# 'genotypeMatrix.rds'. This is the .vcf file converted to a genotype matrix
+# with sites where all individuals are heterozygotes removed.
 
-# Matrix to hold binary values...
-G <- matrix(NA, nrow = nrow(geno), ncol = ncol(geno))
+getFixedHeterozygoteSites <- function(genotype.matrix) {
+    # Convert to format (file-backed matrix; 'FBM') that Prive uses
+    # in his walk-through.
+    G_FBM <- add_code256(big_copy(t(genotype.matrix), type="raw"),
+                         code = bigsnpr:::CODE_012)
 
-# Changing the values to either 0, 1, 2
-G[grepl("0/0", geno, fixed = TRUE)] <- 0
-G[grepl("0|0", geno, fixed = TRUE)] <- 0
-G[grepl("0/1", geno, fixed = TRUE)] <- 1
-G[grepl("0|1", geno, fixed = TRUE)] <- 1
-G[grepl("1/0", geno, fixed = TRUE)] <- 1
-G[grepl("1|0", geno, fixed = TRUE)] <- 1
-G[grepl("1/1", geno, fixed = TRUE)] <- 2
-G[grepl("1|1", geno, fixed = TRUE)] <- 2
+    # Search all of the SNP sites where all individuals are heterozygotes (have
+    # a value of 1)
+    return(which(big_counts(G_FBM)[2,] == 90))
+}
 
-# Factoring the different chromosomes so they can be encoded as integer values.
-factor.chromosome <- factor(CHR)
-allData <- list(G = G,
-                positions = POS,
-                chromosome = as.integer(factor.chromosome))
+getProcessedData <- function(vcf.file = "Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz",
+                             metadata.file = "modifiedColors_SampleMetaData.csv") {
+    # read the VCF file using the 'vcfR' package
+    vcf <- read.vcfR(vcf.file)
+    # Grab the metadata from the VCF file
+    geno <- vcf@gt[,-c(1)]
+    # Get the positions of the SNPs. Positions in bp.
+    POS <- getPOS(vcf)
+    assign("POS", POS, envir = .GlobalEnv)
+    # Get chromosome information.
+    CHR <- getCHROM(vcf)
+    assign("CHR", CHR, envir = .GlobalEnv)
+    # Factoring the different chromosomes so they can be encoded as integer values.
+    factor.chromosome <- as.integer(factor(CHR))
 
-# Save allData for the sake of time when doing additional analysis
-saveRDS(allData, 'matrixAndMetadata.rds')
+    # Matrix to hold binary values...
+    G <- matrix(NA, nrow = nrow(geno), ncol = ncol(geno))
 
-# End of the conversion from VCF to genotype matrix.
+    # Changing the values to either 0, 1, 2
+    G[grepl("0/0", geno, fixed = TRUE)] <- 0
+    G[grepl("0|0", geno, fixed = TRUE)] <- 0
+    G[grepl("0/1", geno, fixed = TRUE)] <- 1
+    G[grepl("0|1", geno, fixed = TRUE)] <- 1
+    G[grepl("1/0", geno, fixed = TRUE)] <- 1
+    G[grepl("1|0", geno, fixed = TRUE)] <- 1
+    G[grepl("1/1", geno, fixed = TRUE)] <- 2
+    G[grepl("1|1", geno, fixed = TRUE)] <- 2
 
-###############################################################################
+    # Remove sites where all individuals are heterozygotes.
+    allFixedHeteroSites <- getFixedHeterozygoteSites(G)
 
-# Performing PCA on full genotype matrix using 'pcadapt' package.
+    allData <- list(genotype = G[-allFixedHeteroSites, 1:90],
+                    positions = POS[-allFixedHeteroSites],
+                    chromosome = factor.chromosome[-allFixedHeteroSites])
+    
+    # End of the conversion from VCF to genotype matrix.
+    # Save allData for the sake of time when doing additional analysis
+    saveRDS(allData, 'genotypeMatrix.rds')
 
-# Given the format of the data, use the 'pcadapt' type to read the genotype
-# matrix into the format necessary for other package functions
-genoMatPcadapt <- read.pcadapt(allData$G, type='pcadapt')
+    # Next we will map the metadata onto the genotype matrix and combine them both
+    # into a single object.
+    metadata <- read.csv(metadata.file)
+    genotypeMatrixAndMetadata <- list(genotype = allData$genotype,
+                                      fam = data.frame(pop.id = metadata$custom.id,
+                                                       color = metadata$color,
+                                                       plot.id = metadata$plot.id),
+                                      map = data.frame(positions = allData$positions,
+                                                       chromosome = allData$chromosome))
 
-fullPcadapt <- pcadapt(genoMatPcadapt, K=13)
-
-# Save the PCA object for any future analyses.
-saveRDS(fullPcadapt, 'pcadaptOnFullGenotypeMatrix.rds')
-
-###############################################################################
+    saveRDS(genotypeMatrixAndMetadata, 'genotypeMatrixAndMetadata.rds')
+}
 
 # Performing SNP thinning, removal of long-range LD regions and PCA using the
 # 'bigsnpr' package
 
-# Convert to format (file-backed matrix; 'FBM') that Prive uses
-# in his walk-through.
-G_FBM <- add_code256(big_copy(t(allData$G), type="raw"),
-                     code = bigsnpr:::CODE_012)
+analysisFullDataset <- function(data = "genotypeMatrixAndMetadata.rds",
+                                pca.loadings = 13, 
+                                window = 10000, 
+                                nb.cores = 4){
+    allData <- readRDS(data)
 
-# Search all of the SNP sites where all individuals are heterozygotes (have a 
-# value of 1)
-allHeteroSites <- which(big_counts(G_FBM)[2,] == 90)
+    G_FBM <- add_code256(big_copy(t(allData$genotype), type="raw"),
+                         code = bigsnpr:::CODE_012)
+    
+    # Run snp_autoSVD on the full dataset
+    fullDatasetSVD <- snp_autoSVD(G_FBM,
+                                  infos.chr = allData$map$chromosome,
+                                  infos.pos = allData$map$positions,
+                                  k = pca.loadings,
+                                  size = window,
+                                  is.size.in.bp = TRUE,
+                                  ncores = nb.cores)
 
-# Reset the variable G_FBM after taking out the sites where all individuals are
-# heterozygotes.
-G_FBM <- add_code256(big_copy(t(allData$G[-allHeteroSites, 1:90]), type="raw"),
-                     code = bigsnpr:::CODE_012)
+    saveRDS(fullDatasetSVD, 'fullDatasetSVD.rds')
 
-fbmAllData <- list(genotype = G_FBM,
-                   fam = data.frame(pop.id = metadata$custom.id,
-                                    color = metadata$color,
-                                    plot.id = metadata$plot.id),
-                   map = data.frame(positions = allData$positions[-allHeteroSites],
-                                    chromosome = allData$chromosome[-allHeteroSites]))
+    thinnedMatrixAndMetaData <- list(G = allData$genotype[attr(fullDatasetSVD, "subset"), ],
+                                 positions = allData$map$positions[attr(fullDatasetSVD, "subset")],
+                                 chromosome = allData$map$chromosome[attr(fullDatasetSVD, "subset")])
 
-# Run snp_autoSVD on the full dataset with 13 PCs 
-fullDatasetSVD13 <- snp_autoSVD(G_FBM,
-                                infos.chr = fbmAllData$map$chromosome,
-                                infos.pos = fbmAllData$map$positions,
-                                k = 13,
-                                ncores=4)
-
-saveRDS(fullDatasetSVD13, 'fullDatasetSVD13.rds')
+    saveRDS(thinnedMatrixAndMetaData, "thinnedMatrixAndMetaData.rds")
+}
 
 # INSERT CODE FOR THE PCA PLOTS...
 
 ###############################################################################
 
-# Perform analysis on subset (10K) of the thinned SNPs
+getSubsets <- function(data = "thinnedMatrixAndMetaData.rds"){
 
-thinnedMatrixAndMetaData <- list(G = allData$G[attr(fullDatasetSVD13, "subset"), ],
-                                 positions = allData$positions[attr(fullDatasetSVD13, "subset")],
-                                 chromosome = allData$chromosome[attr(fullDatasetSVD13, "subset")])
+    # get subset (20K) of the thinned SNPs
 
-# Set seed and generate 10K random samples of loci to include in the analysis
-# and subset the dataset.
-set.seed(10)
-random10 <- sample(1:nrow(thinnedMatrixAndMetaData$G), 10000)
+    postAnalysisData <- readRDS(data)
 
-random10AllData <- list(G = thinnedMatrixAndMetaData$G[random10, 1:90],
-                           positions = thinnedMatrixAndMetaData$positions[random10],
-                           chromosomes = thinnedMatrixAndMetaData$chromosome[random10])
-# Write chromosome and positions of the thinned randomly selected SNPs to txt 
-# file
-write(paste(CHR[random10AllData$chromosome],
-              random10AllData$positions, sep='    '),
-              "10KRandomSNPs13PCs.txt")
-# Get the subsetted data into the correct format.
-subset10_G_FBM <- add_code256(big_copy(t(random10AllData$G), type="raw"),
-                              code = bigsnpr:::CODE_012)
-fbm.random10 <- list(genotype = subset10_G_FBM,
-                       fam = data.frame(sample.id=metadata$Sample.ID,
-                                        pop.id=metadata$Pop.ID,
-                                        sex = metadata$Sex),
-                       map = data.frame(positions = random10AllData$positions,
-                                        chromosome = random10AllData$chromosome))
-# Perform the clumping and check for long-range LD regions
-subset10_fullDatasetSVD13 <- snp_autoSVD(subset10_G_FBM,
-                                         infos.chr = random10AllData$chromosomes,
-                                         infos.pos = random10AllData$positions,
-                                         k = 13,
-                                         ncores = 4)
+    # Set seed and generate 20K random samples of loci and subset the dataset.
+    set.seed(20)
+    random20 <- sample(1:nrow(postAnalysisData$G), 20000)
 
+    random20Subset <- list(G = postAnalysisData$G[random20, 1:90],
+                            positions = postAnalysisData$positions[random20],
+                            chromosomes = postAnalysisData$chromosome[random20])
+    # Write chromosome and positions of the thinned randomly selected SNPs to txt 
+    # file
+    write(paste(CHR[random20Subset$chromosome],
+                random20Subset$positions, sep='    '),
+                "20KRandomSNPs.txt")
 
-saveRDS(subset10_fullDatasetSVD13, '10kRandomSubsetThinned13PCs.rds')
+    set.seed(50)
+    random50 <- sample(1:nrow(postAnalysisData$G), 50000)
+
+    random50Subset <- list(G = postAnalysisData$G[random50, 1:90],
+                           positions = postAnalysisData$positions[random50],
+                           chromosomes = postAnalysisData$chromosome[random50])
+
+    # Write chromosome and positions of the thinned randomly selected SNPs to txt 
+    # file
+    write(paste(CHR[random50Subset$chromosome],
+                random50Subset$positions, sep='    '),
+                "50KRandomSNPs.txt")
+}
 
 ###############################################################################
 
-# Perform analysis on subset (50K) of the thinned SNPs
+getDataWrapper <- function(){
+    getProcessedData(vcf.file = "Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz",
+                     metadata.file = "modifiedColors_SampleMetaData.csv")
 
+    analysisFullDataset(data = "genotypeMatrixAndMetadata.rds",
+                        pca.loadings = 13, 
+                        window = 10000, 
+                        nb.cores = 4)
 
-set.seed(50)
-random50 <- sample(1:nrow(thinnedMatrixAndMetaData$G), 50000)
+    getSubsets(data = "thinnedMatrixAndMetaData.rds")
+}
 
-random50_allData <- list(G = thinnedMatrixAndMetaData$G[random50, 1:90],
-                         positions = thinnedMatrixAndMetaData$positions[random50],
-                         chromosomes = thinnedMatrixAndMetaData$chromosome[random50])
-
-subset50_G_FBM <- add_code256(big_copy(t(random50_allData$G), type="raw"),
-                              code = bigsnpr:::CODE_012)
-
-fbm.random50 <- list(genotype = subset50_G_FBM,
-                     fam = data.frame(sample.id=metadata$Sample.ID,
-                                      pop.id=metadata$Pop.ID,
-                                      sex = metadata$Sex),
-                     map = data.frame(positions = random50_allData$positions,
-                                      chromosome = random50_allData$chromosome))
-
-subset50_fullDatasetSVD13 <- snp_autoSVD(subset50_G_FBM,
-                                         infos.chr = random50_allData$chromosome,
-                                         infos.pos = random50_allData$positions,
-                                         k = 13,
-                                         ncores = 4)
-
-saveRDS(subset50_fullDatasetSVD13, '50kRandomSubsetThinned13PCs.rds')
+getDataWrapper()
