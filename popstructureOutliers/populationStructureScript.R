@@ -97,7 +97,6 @@ getProcessedData <- function(vcf.file = "Combined.SNP.TRSdp5g1FnDNAmaf052alleles
     metadata <- read.csv(metadata.file)
     genotypeMatrixAndMetadata <- list(genotype = allData$genotype,
                                       fam = data.frame(pop.id = metadata$custom.id,
-                                                       color = metadata$color,
                                                        plot.id = metadata$plot.id),
                                       map = data.frame(positions = allData$positions,
                                                        chromosome = allData$chromosome))
@@ -110,7 +109,7 @@ getProcessedData <- function(vcf.file = "Combined.SNP.TRSdp5g1FnDNAmaf052alleles
 
 analysisFullDataset <- function(data = "genotypeMatrixAndMetadata.rds",
                                 pca.loadings = 13, 
-                                window = 10000, 
+                                window = 100000, 
                                 nb.cores = 4){
     allData <- readRDS(data)
 
@@ -126,40 +125,85 @@ analysisFullDataset <- function(data = "genotypeMatrixAndMetadata.rds",
                                   is.size.in.bp = TRUE,
                                   ncores = nb.cores)
 
-    saveRDS(fullDatasetSVD, 'fullDatasetSVD.rds')
+    saveRDS(fullDatasetSVD, paste("fullDatasetSVD", window, "Window.rds", sep = ""))
 
     thinnedMatrixAndMetaData <- list(G = allData$genotype[attr(fullDatasetSVD, "subset"), ],
-                                 positions = allData$map$positions[attr(fullDatasetSVD, "subset")],
-                                 chromosome = allData$map$chromosome[attr(fullDatasetSVD, "subset")])
+                                     positions = allData$map$positions[attr(fullDatasetSVD, "subset")],
+                                     chromosome = allData$map$chromosome[attr(fullDatasetSVD, "subset")])
 
-    saveRDS(thinnedMatrixAndMetaData, "thinnedMatrixAndMetaData.rds")
+    saveRDS(thinnedMatrixAndMetaData, 
+            paste("thinnedMatrixAndMetaData", window, "Window.rds", sep = ""))
 }
 
 # INSERT CODE FOR THE PCA PLOTS...
 
 ###############################################################################
 
-getSubsets <- function(data = "thinnedMatrixAndMetaData.rds"){
+getSubsets <- function(data = "thinnedMatrixAndMetaData1e+05Window.rds"){
 
-    # get subset (20K) of the thinned SNPs
+    window <- strsplit(data, "Data", fixed = TRUE)[[1]][2]
 
     postAnalysisData <- readRDS(data)
 
+    # get subset (20K) of the thinned SNPs
+
     # Set seed and generate 20K random samples of loci and subset the dataset.
     set.seed(20)
-    random20 <- sample(1:nrow(postAnalysisData$G), 20000)
+    index <- 0
+    random20 <- c(rep(0, 20000))
+    for (i in unique(postAnalysisData$chromosome)) {
+        tmp <- floor(length(which(postAnalysisData$chromosome == i)) * 0.1)
+        random20[index + 1:tmp] <- sample(which(postAnalysisData$chromosome == i), tmp)
+        index <- index + tmp
+    }
+
+    while(length(random20) > 20000){
+        t <- length(random20) - 20000
+        chr <- 1
+        index <- 1
+        tmp <- floor(length(which(postAnalysisData$chromosome == chr)) * 0.1)
+        random20 <- random20[-index]
+        chr =+ 1
+        if (chr == 11) {
+            chr <- 1
+        }
+        index =+ tmp
+    }
 
     random20Subset <- list(G = postAnalysisData$G[random20, 1:90],
-                            positions = postAnalysisData$positions[random20],
-                            chromosomes = postAnalysisData$chromosome[random20])
+                           positions = postAnalysisData$positions[random20],
+                           chromosomes = postAnalysisData$chromosome[random20])
     # Write chromosome and positions of the thinned randomly selected SNPs to txt 
     # file
     write(paste(CHR[random20Subset$chromosome],
                 random20Subset$positions, sep='    '),
-                "20KRandomSNPs.txt")
+                paste("20KRandomSNPs", strsplit(window, ".rds")[[1]][1], ".txt", sep = ""))
 
+    # Write genotype matrix, positions and corresponding chromosome to R object file
+    saveRDS(random20Subset, paste("20KRandomSNPs", window, sep = ""))
+
+    
     set.seed(50)
-    random50 <- sample(1:nrow(postAnalysisData$G), 50000)
+    index <- 0
+    random50 <- c(rep(0, 50000))
+    for (i in unique(postAnalysisData$chromosome)) {
+        tmp <- floor(length(which(postAnalysisData$chromosome == i)) * 0.24)
+        random50[index + 1:tmp] <- sample(which(postAnalysisData$chromosome == i), tmp)
+        index <- index + tmp
+    }
+
+    while(length(random50) > 50000){
+        t <- length(random50) - 50000
+        chr <- 1
+        index <- 1
+        tmp <- floor(length(which(postAnalysisData$chromosome == chr)) * 0.24)
+        random50 <- random50[-index]
+        chr =+ 1
+        if (chr == 11) {
+            chr <- 1
+        }
+        index =+ tmp
+    }
 
     random50Subset <- list(G = postAnalysisData$G[random50, 1:90],
                            positions = postAnalysisData$positions[random50],
@@ -169,21 +213,25 @@ getSubsets <- function(data = "thinnedMatrixAndMetaData.rds"){
     # file
     write(paste(CHR[random50Subset$chromosome],
                 random50Subset$positions, sep='    '),
-                "50KRandomSNPs.txt")
+                paste("50KRandomSNPs", strsplit(window, ".rds")[[1]][1], ".txt", sep = ""))
+
+    # Write genotype matrix, positions and corresponding chromosome to R object file
+    saveRDS(random50Subset, paste("50KRandomSNPs", window, sep = ""))
+
 }
 
 ###############################################################################
 
 getDataWrapper <- function(){
     getProcessedData(vcf.file = "Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz",
-                     metadata.file = "modifiedColors_SampleMetaData.csv")
+                     metadata.file = "modified_samplemetadata.csv")
 
     analysisFullDataset(data = "genotypeMatrixAndMetadata.rds",
                         pca.loadings = 13, 
-                        window = 10000, 
+                        window = 100000, 
                         nb.cores = 4)
 
-    getSubsets(data = "thinnedMatrixAndMetaData.rds")
+    getSubsets(data = "thinnedMatrixAndMetaData1e+05Window.rds")
 }
 
 getDataWrapper()
