@@ -6,25 +6,25 @@ This directory contains the results and plots from [EEMS](https://github.com/dip
 
 ## Plots
 
-Plots are contained in subdirectories of '10KThinnedRandomSNPs13PCs' and '50KThinnedRandomSNPs13PCs'. EEMS requires habitat boundaries to be input along with the data and I tried two different versions of the boundaries. One where the boundary followed the coastline (10/50k_map-xxx.png) and one where the boundary is much larger and includes land (10k_include_land-xxx.png). I also tried two different versions of the larger, 'include_land', boundary, one where the number of demes in the habitat grid was set to 200 and one where the number of demes was increased to 500. 
+Plots are contained in subdirectories of '10KThinnedRandomSNPs13PCs' and '50KThinnedRandomSNPs13PCs'. EEMS requires habitat boundaries to be input along with the data and I tried two different versions of the boundaries. One where the boundary followed the coastline (10/50k_coast-xxx.png) and one where the boundary is much larger and includes land (10k_include_land-xxx.png). I also tried two different versions of the larger, 'include_land', boundary, one where the number of demes in the habitat grid was set to 200 and one where the number of demes was increased to 500. 
 
 ### Don't include land
 
-![10k-labels-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/10k_map-mrates01.png)
+![10k-labels-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/10K_coast-mrates01.png)
 
 Circles are demes that the samples have been assigned to (more samples = bigger circle), the black line is the habitat boundary I input.
 
-![50k_map-mrates01.png](./50KThinnedRandomSNPs13PCs/plots/labels-mrates01.png)
+![50k_map-mrates01.png](./50KThinnedRandomSNPs13PCs/plots/50K_labels_coast-mrates01.png)
 
 The version using 50k SNPs. The pattern is essentially the same. Labels are visible here to show which population corresponds with which deme.
 
 ### Include land
 
-![10k_include_land-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/10k_include_land-mrates01.png)
+![10k_include_land-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/10K_include_land-mrates01.png)
 
 The version of the plot with only 200 demes. Note that some of the populations that were separate above have been combined into the same deme in this larger, less precise map.
 
-![10k-labels_land_500_demes-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/labels_land_500_demes-mrates01.png)
+![10k-labels_land_500_demes-mrates01.png](./10KThinnedRandomSNPs13PCs/plots/10K_labels_land_500_demes-mrates01.png)
 
 The version of the plot with 500 demes. The populations are once again separate, the pattern is pretty similar though. This version took much longer to run. 
 
