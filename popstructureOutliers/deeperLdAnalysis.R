@@ -1,3 +1,19 @@
+###############################################################################
+#
+# File      : deeperLdAnalysis.R 
+# History   : 12/20/2018 - Created by KBW
+#             01/05/2019 - Altered for increased window sizes
+#
+###############################################################################
+
+###############################################################################
+#
+# This script is the source code for the deeperLdAnalysis.html document that
+# walks through the steps that we went through to find the window size that we
+# wanted to use for the bigsnpr::snp_autoSVD() function to prune our SNPs.
+#
+###############################################################################
+
 thinnedData <- readRDS("thinnedMatrixAndMetaData.rds")
 allData <- readRDS("genotypeMatrix.rds")
 
