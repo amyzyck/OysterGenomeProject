@@ -1,0 +1,42 @@
+KEY for full_sample_metadata_4_14_19_ER.csv
+Erin Roberts March 14, 2019
+
+Sample_name: Pop.ID plus Sample ID 
+Plot_name: the new key that combines pop name with salinity data
+Region: Louisiana, Chesapeake Bay, Delaware Bay, Maine, Mexico, RU inbred
+Ecotype: High = high salinity; Low=low salinity; Selected_Low = selected low salinity, Selected_High = selected low salinity
+Wild.Sel: W = Wild; S = selected; inbred = selectively inbred
+Pop: Name of the population
+Sampling.Site: Site where oysters were sampled	
+Lat: Latitude provided, or latitude near site location
+Long: Longitude provided, or longitude from near site	
+Temp: Temperature from the day of sampling, or if none provided average temperature from fall (Oct.) 2016 chosen
+Sal: Salinity from the day of sampling, or if none provided average salinity from fall (Oct.) 2016 chosen
+Sampling.Date: Sampling date provided by sampler	
+Contact: Person to contact with questions about the sample
+Length_mm:Length of the sampled oyster in mm	
+Sex: Sex of the oyster. M = Male; F = Female; Undetermined = could not sex animal; None provided = was left blank by person reporting; M? = likely male; F? = likely female
+Tissues: which tissues were taken from oysters. A= adductor; M = mantle; G= gills; None provided = tissues taken were not listed by sampled
+NOTES: any sampling notes
+Mean_Annual_Temperature_Celsius: 
+Max_temperature_Celsius	Min_temperature_Celsius	
+Mean_Annual_Salinity_ppt: Calculated from provided data, provided from R calculation
+dd_0: Calculated from provided data, provided from R calculation	
+dd_15: Calculated from provided data, provided from R calculation	
+dd_30: Calculated from provided data, provided from R calculation	
+Dermo_pressure_since_year: From provided records and knowledge from Marta Gomez-Chiarri, Dina Proestou, Jessica Small	
+Dermo_pressure: From provided records and knowledge from Marta Gomez-Chiarri, Dina Proestou, Jessica Small	
+MSX_pressure_since_year: From provided records and knowledge from Marta Gomez-Chiarri, Dina Proestou, Jessica Small
+MSX_pressure: From provided records and knowledge from Marta Gomez-Chiarri, Dina Proestou, Jessica Small 
+Generations_selection: from provided records in the History_selected_lines_ER.txt 	
+History_of_Introgression: from provided records in the History_selected_lines_ER.txt 
+Frequency_of_outbreeding: from provided records in the History_selected_lines_ER.txt 
+Number_generations_outbred: from provided records in the History_selected_lines_ER.txt 
+Outbreeding_populations: from provided records in the History_selected_lines_ER.txt 
+salinity_selection: from provided records in the History_selected_lines_ER.txt 
+disease_selection: from provided records in the History_selected_lines_ER.txt 
+size_selection: from provided records in the History_selected_lines_ER.txt 
+Selection_description: from provided records in the History_selected_lines_ER.txt 	
+Population_origin_wild: from provided records in the History_selected_lines_ER.txt 	
+Population_selection_location: from provided records in the History_selected_lines_ER.txt 	
+Details_notes: any additional notes  
