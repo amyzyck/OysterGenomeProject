@@ -75,3 +75,11 @@ Also of note is that this VCF contains all the individuals, including the aquacu
 * __README.md__ - This file : D
 * __SampleMetaData.csv__ - SampleMetaData.md file found on github repo converted
   to .csv format.
+  
+  
+  ## Epigenetics
+HP: I am including here a link to the CpG o/e file, as well as the description of the file generation.
+
+http://gannet.fish.washington.edu/Atumefaciens/20190225_cpg_oe/ID_CpG_labelled_all
+
+https://github.com/hputnam/EastOyEpi/blob/master/methods.md
