@@ -7,10 +7,12 @@ In order to make decisions throughout the thinning process, we needed to revisit
 The affect that they have on the LD decay is fairly obvious. Here is the LD decay when LM samples are included...
 
 ![](../figures/1LD_analysis/LdDecayPlot_allpops.png)
+__../figures/1LD_analysis/LdDecayPlot_allpops.png__
 
 Then, compare that to same analysis when LM samples are excluded...
 
 ![](../figures/1LD_analysis/LdDecayPlot_excluding_LM.png)
+__../figures/1LD_analysis/LdDecayPlot_excluding_LM.png__
 
 The LD decay is much more pronounced when excluding LM individuals. This will lead us to using a much smaller window when performing the SNP thinning. However, we wanted to see how LD decay was behaving when considering certain subsets of the populations as well.
 
@@ -23,8 +25,10 @@ We also wanted to see how LD decay is affected when only considering...
 Here are the plots from those analyses, respectively:
 
 ![](../figures/1LD_analysis/LdDecayPlot_excluding_selection.png)
+__../figures/1LD_analysis/LdDecayPlot_excluding_selection.png__
 
 ![](../figures/1LD_analysis/LdDecayPlot_excluding_wild.png)
+__../figures/1LD_analysis/LdDecayPlot_excluding_wild.png__
 
 The comparison between the wild and selection plots might be what you would expect given the relatedness amongst the selection lines. The LD decay does not go quite as low with selection lines
 
