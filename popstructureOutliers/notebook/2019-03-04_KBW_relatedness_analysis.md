@@ -2,23 +2,27 @@
 
 ## Relatedness Analysis
 
-We used vcftools using the --relatedness option in order to get
+We wanted to look at the relatedness between the individuals in order to get a better idea of how each may be affecting downstream analyses such as LD decay and outlier detection. We look first at relatedness between all individuals and show that many individuals from Laguna Madre, selection lines and inbred lines are highly related with one another. We then looked at two specific subsets of individuals: (1) Atlantic Wild populations and (2) Atlantic selection lines.
+
+### Methods
+
+We used vcftools with the --relatedness option in order to get
 relatedness comparisons between all individuals using
 the "Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz" VCF file. The
 --relatedness option calculates relatedness by based on the method of
 Yang et al, Nature Genetics 2010 (doi:10.1038/ng.608). Specifically,
 calculate the unadjusted Ajk statistic. Expectation of Ajk is zero for
 individuals within a populations, and one for an individual with
-themselves. 
+themselves.
 
 The following code was used in order to get a visual of the data and
 see which individuals were most related to one another. The data is
 first transformed from a long to wide format to create a triangle
 matrix. The data is then plotted using a heat map to visualize the degree of
-relatedness between each individual. 
+relatedness between each individual.
 
 ```{r}
-rel <- read.csv("../data/relatedness_data/relatedness_stats.relatedness", 
+rel <- read.csv("../data/relatedness_data/relatedness_stats.relatedness",
                 sep="\t",
                 header=TRUE,
                 stringsAsFactors=FALSE)
@@ -39,7 +43,11 @@ axis(2, at=1:90, las=2, labels=colnames(new.rel))
 dev.off()
 ```
 
-![](../figures/5relatedness/relatedness_plot.png)
+### Results
+
+#### All populations
+
+![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/5relatedness/relatednessPlot_allPops.png)
 
 This plot can be seen in the figures folder "figures/5relatedness/"
 
@@ -88,3 +96,15 @@ individuals that have a relatedness of >= 0.4:
 3867  OBOYS2_4 OBOYS2_6        0.464652
 4087    UMFS_3   UMFS_4        0.428791
 ```
+
+#### Atlantic Wild and Atlantic Selection Subsets
+
+![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/5relatedness/relatednessPlot_atlanticWildPops.png)
+
+![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/5relatedness/relatednessPlot_atlanticSelectionPops.png)
+
+### Follow up
+
+#### Removing related individuals
+
+As we do further analyses such as LD decay analysis and thinning, we may not want highly related individuals that we have found in this analysis. We have decided that highly related individuals we may want to remove to be one individual from a pair that has a relatedness value >= 0.5. There are two individuals that are of interest when looking at the Atlantic Selection lines, namely, NEH_1 and LOLA_2.
