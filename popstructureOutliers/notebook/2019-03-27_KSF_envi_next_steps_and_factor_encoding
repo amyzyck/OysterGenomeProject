@@ -1,6 +1,0 @@
-# Plan for Environmental Analysis
-
-1) match ids to csv file with subsets
-2) variables to look at: lat, long, temp_C, mean_annual_temp, max_temp, min_temp,
-mean_salinity, dd_0, dd_30, dermo_pressure (code as 1,2,3), mx pressure (none =
-0, low = 1, sporadic=2, high=3)
