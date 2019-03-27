@@ -104,11 +104,14 @@ decay.plots <- function (path = NULL, file.suffix = NULL, plot.title = NULL) {
     chr.index <- sort(chr.index)
 
     ld.stats <- data.frame(matrix(NA, length(ld.datasets), chr.num))
+    ld.error <- data.frame(matrix(NA, length(ld.datasets), chr.num))
     ld.stats[,1] <- as.numeric(names(ld.datasets))
+    ld.error[,1] <- as.numeric(names(ld.datasets))
     for (i in 1:length(ld.datasets)) {
         ld.datasets[[i]]$R.2 <- as.numeric(ld.datasets[[i]]$R.2)
         for (j in 1:chr.num) {
             ld.stats[i, j+1] <- summary(ld.datasets[[i]]$R.2[which(ld.datasets[[i]]$CHR == paste("NC_03578", chr.index[j], ".1", sep=""))])[4]
+            ld.error[i, j+1] <- sd(na.omit(ld.datasets[[i]]$R.2[which(ld.datasets[[i]]$CHR == paste("NC_03578", chr.index[j], ".1", sep=""))])) / sqrt(length(na.omit(ld.datasets[[i]]$R.2[which(ld.datasets[[i]]$CHR == paste("NC_03578", chr.index[j], ".1", sep=""))])))
         }
     }
 
@@ -125,17 +128,19 @@ decay.plots <- function (path = NULL, file.suffix = NULL, plot.title = NULL) {
                  col = col_vector[i],
                  cex = 2,
                  xlab="Distance (bp)", 
-                 ylab="LD (r^2)",
-                 ylim=c(0,0.24),
+                 ylab="LD (r^2) +/- Std. Error",
+                 ylim=c(0, 0.24),
                  type = "b",
                  log = "x",
                  main=paste("LD Decay:", plot.title, sep=" "))
+                 arrows(ld.stats[,1], ld.stats[,i]-ld.error[,i], ld.stats[,1], ld.stats[,i]+ld.error[,i], col=col_vector[i], length=0.05, angle=90, code=3)
         } else {
             points(jitter(ld.stats[,i]) ~ ld.stats[, 1],
                    pch = i,
                    col = col_vector[i],
                    cex = 2,
                    type = "b")
+            arrows(ld.stats[,1], ld.stats[,i]-ld.error[,i], ld.stats[,1], ld.stats[,i]+ld.error[,i], col=col_vector[i], length=0.05, angle=90, code=3)
         }
         legend("topright", legend = CHR, pch = 2:(length(CHR)+1), col = col_vector[2:(length(CHR)+1)])
     }
@@ -143,22 +148,21 @@ decay.plots <- function (path = NULL, file.suffix = NULL, plot.title = NULL) {
 }
 
 # Get plot for all populations
+ decay.plots(path="data/large_data/ldAnalysisData/allpops/",
+             file.suffix = "allpops",
+             plot.title = "All Populations")
+
+# # Get plot for all populations when excluding LM
 decay.plots(path="data/large_data/ldAnalysisData/excluding_LM/",
             file.suffix = "excluding_LM",
             plot.title = "Excluding LM")
-
-# Get plot for all populations when excluding LM
-decay.plots(path="data/large_data/ldAnalysisData/excluding_LM/",
-            file.suffix = "excluding_LM",
-            plot.title = "Excluding LM")
-
-# Get plot for wild Atlantic populations
+# 
+# # Get plot for wild Atlantic populations
 decay.plots(path="data/large_data/ldAnalysisData/excluding_selection/",
             file.suffix = "excluding_selection",
             plot.title = "Atlantic Wild Populations")
 
 # Get plot for selection Atlantic populations
-decay.plots(path="data/large_data/ldAnalysisData/excluding_wild/",
-            file.suffix = "excluding_wild",
-            plot.title = "Atlantic Selection Populations")
-
+ decay.plots(path="data/large_data/ldAnalysisData/excluding_wild/",
+             file.suffix = "excluding_wild",
+             plot.title = "Atlantic Selection Populations")
