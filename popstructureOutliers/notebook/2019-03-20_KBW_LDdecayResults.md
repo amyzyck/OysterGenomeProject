@@ -14,7 +14,7 @@ We used `vcftools` for the LD calculations. Across all LD decay analyses, we use
 vcftools --gzvcf Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz --geno-r2 --ld-window-bp-min 200 --ld-window-bp 250 --out ldAnalysisData/geno_ld_window_200-250
 ```
 
-Lastly, to summarize and plot LD for each chromosome, I took a mean of the LD values for each chromosome. Each point that you see on the plots below represent that mean LD value. To see the variance in LD at each window size for each chromosome, error bars are shown which one standard deviation from the mean.
+Lastly, to summarize and plot LD for each chromosome, I took a mean of the LD values for each chromosome. Each point that you see on the plots below represent that mean LD value. To see the variance in LD at each window size for each chromosome, error bars are shown to visualize the mean +/- the standard error.
 
 ### Individuals and Subsets of Individuals
 
@@ -24,33 +24,32 @@ We also wanted to see how LD decay is affected when only considering specific su
 
 #### Related Individuals
 
-One caveat with the subset of individuals from Atlantic selection lines is that there were individuals that were highly related (relatedness > 0.5). These individuals (NEH_1 & LOLA_2) were removed from the LD decay analysis of Atlantic selection lines.
+One thing to note with the subset of individuals from Atlantic selection lines is that there were individuals that were highly related (relatedness > 0.5). I suggest that setting the relatedness threshold at 0.5 removes highly related individuals that may affect the thinning process. As a sanity check, I looked at LD decay of the Atlantic selection lines with NEH_1 and LOLA_2 and again without those two individuals. The LD decay slope was not visibly affected by excluding these samples.
+
+The LD decay plot below corresponding to the Atlantic selection lines shows the LD decay when excluding those related individuals (NEH_1 & LOLA_2).
 
 ## Results
 
 ### All populations and Excluding Laguna Madre
 
-The effect that they have on the LD decay is fairly obvious. Here is the LD decay when LM samples are included...
+The effect that they have on the LD decay is fairly obvious. Here is the LD decay when LM samples are included (left) and excluded (right).
 
-![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_allpops.png)
-__../figures/1LD_analysis/LdDecayPlot_allpops.png__
+<p float="left">
+    <img src="https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_allpops.png" width="400">
+    <img src="https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_LM.png" width="400">
+</p>
 
-Then, compare that to same analysis when LM samples are excluded...
-
-![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_LM.png)
-__../figures/1LD_analysis/LdDecayPlot_excluding_LM.png__
 
 The LD decay is much more pronounced when excluding LM individuals. This will lead us to using a much smaller window when performing the SNP thinning. However, we wanted to see how LD decay was behaving when considering certain subsets of the populations as well.
 
 ### Atlantic Wild and Selection subsets
 
-Here are the plots from those analyses, respectively:
+Here are the plots from those analyses, Atlantic wild subset (left) and selection lines (right).
 
-![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_selection.png)
-__../figures/1LD_analysis/LdDecayPlot_excluding_selection.png__
-
-![](https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_wild.png)
-__../figures/1LD_analysis/LdDecayPlot_excluding_wild.png__
+<p float="left">
+    <img src="https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_selection.png" width="400">
+    <img src="https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/popstructureOutliers/figures/1LD_analysis/ldDecayPlot_excluding_wild.png" width="400">
+</p>
 
 The comparison between the wild and selection plots might be what you would expect given the relatedness amongst the selection lines. The LD decay does not go quite as low with selection lines
 
