@@ -28,7 +28,5 @@ Here is a table of describing the thinned SNPs, windows used, and subsets used.
 | thinnedMatrixAndMetaData5000Window_unrelated   |     341044    |
 | thinnedMatrixAndMetaData50000Window_unrelated  |     184326    |
 
-You will also see that there are subsets from the thinned set of SNPs in the file as well. There should be a subset of 20K and 50K SNPs for each set of thinned SNPs. The naming scheme is similar to the full set of thinned SNPs:
+You will also see that there are subsets from the thinned set of SNPs in the file as well. There should be a subset of 20K and 50K SNPs for each set of thinned SNPs. These subsets include 20K and 50K SNPs that were selected randomly from each chromosome at equal proportions. The naming scheme is similar to the full set of thinned SNPs:
 `##KRandomSNPs####Window_name_of_subset_used`
-
-## Follow up
