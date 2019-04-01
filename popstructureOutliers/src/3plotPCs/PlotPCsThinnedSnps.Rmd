@@ -1,0 +1,134 @@
+---
+title: "PCA plots of different thinned SNP sets"
+author: "Katie Lotterhos"
+date: "2/22/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(bigstatsr)
+library(bigsnpr)
+```
+
+## PCA based on thinned SNP set
+
+
+```{r thinned, fig.width=8, fig.height=28, fig.fullwidth=TRUE}
+# load data
+Snps20K <- readRDS("../../data/thinned_snps/20KRandomSNPs1e+05Window.rds")
+str(Snps20K)
+Snps50K <- readRDS("../../data/thinned_snps/50KRandomSNPs1e+05Window.rds")
+Snps200K <- readRDS("../../data/thinned_snps/thinnedMatrixAndMetaData1e+05Window.rds")
+names(Snps200K)[3] <- "chromosomes"
+  # fix inconsistent naming
+str(Snps200K)
+
+# load individual data
+ind <- read.csv("../../data/modified_samplemetadata.csv")
+ind$pch <- as.numeric(ind$custom.id)
+head(ind)
+str(ind)
+
+plotdf <- data.frame(custom.id=unique(ind$custom.id), 
+                pch = unique(ind$pch),
+                color = unique(ind$color),
+                plot.id = unique(ind$plot.id))
+  #this should keep things in order
+head(plotdf)
+plotdf <- plotdf[order(plotdf$custom.id),]
+unique(ind$plot.id)
+```
+
+```{r makePCplotfunction}
+
+makePCplot <- function(snpset, filename){
+
+G_coded <- add_code256(big_copy(t(snpset$G),
+                                type="raw"),
+                       code=bigsnpr:::CODE_012)
+
+s20PC <- snp_autoSVD(G_coded, infos.chr = snpset$chromosomes,
+                     infos.pos = snpset$positions, k = 20)
+
+rownames(s20PC$u) <- ind$Sample.ID
+str(s20PC)
+
+### Scree plot ####
+layout(c(1))
+par(mar=c(4,4,1,1))
+plot(s20PC$d, xlab="PC", ylab= "Variation explained", bty="l")
+
+
+### df setup for legend ####
+alph <- 0.8
+
+### Plot scores of individuals ####
+pdf(paste0("../../figures/plotPCs/", filename, ".pdf"),
+    width=8, height=6)
+
+  layout(matrix(c(1,2,3,4, 5, 5), ncol=3),  widths = c(1,1, 0.7)) 
+
+  par(mar=c(4,4,1,1))
+  plot(s20PC$u[,1], s20PC$u[,2],
+       xlab = "PC 1", ylab= "PC 2", 
+       pch = ind$pch, 
+       col = adjustcolor(as.character(ind$color), alpha=alph), bty="l")
+  
+  par(mar=c(4,4,1,1))
+  plot(s20PC$u[,1], s20PC$u[,3],
+       xlab = "PC 1", ylab= "PC 3", 
+       pch = ind$pch, 
+       col = adjustcolor(as.character(ind$color), alpha=alph), bty="l")
+  
+  par(mar=c(4,4,1,1))
+  plot(s20PC$u[,4], s20PC$u[,2],
+       xlab = "PC 4", ylab= "PC 2", 
+       pch = ind$pch, 
+       col = adjustcolor(as.character(ind$color), alpha=alph), bty="l")
+  
+  par(mar=c(4,4,1,1))
+  plot(s20PC$u[,4], s20PC$u[,3],
+       xlab = "PC 4", ylab= "PC 3", 
+       pch = ind$pch, 
+       col = adjustcolor(as.character(ind$color), alpha=alph), bty="l")
+  
+  # legend
+  par(mar=c(0,0,0,0))
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n",
+       xlab="", ylab="")
+  legend("center", legend = plotdf$plot.id,  horiz = FALSE, inset = c(0, 0), bty = "n", pch = plotdf$pch, 
+      col = adjustcolor(as.character(plotdf$color),alph), cex=1.3 )
+
+dev.off()  
+
+
+pdf(paste0("../../figures/plotPCs/zoomed_", filename, ".pdf"),
+    width=5, height=4)
+
+  layout(matrix(c(1,1,2,2), ncol=2),  widths = c(1,0.7)) 
+  par(mar=c(4,4,1,1))
+  plot(s20PC$u[,1], s20PC$u[,2],
+       xlab = "PC 1", ylab= "PC 2", 
+       pch = ind$pch, 
+       col = adjustcolor(as.character(ind$color), alpha=alph), bty="l", xlim=c(0,0.1), ylim=c(-0.12, 0.1))
+
+  # legend
+  par(mar=c(0,0,0,0))
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n",
+       xlab="", ylab="")
+  legend("center", legend = plotdf$plot.id,  horiz = FALSE, inset = c(0, 0), bty = "n", pch = plotdf$pch, 
+      col = adjustcolor(as.character(plotdf$color),alph), cex=1.3 )
+
+dev.off()
+}
+
+```
+
+```{r make PC plots}
+makePCplot(Snps20K, "PC_scores_thinnedSNPS20K")
+makePCplot(Snps50K, "PC_scores_thinnedSNPS50K")
+makePCplot(Snps200K, "PC_scores_thinnedSNPS200K")
+```
+
