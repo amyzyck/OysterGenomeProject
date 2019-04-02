@@ -66,9 +66,16 @@ getFixedSites <- function(genotype.matrix = NULL) {
 
 getGenotypeMatrix <- function(vcf.file = NULL,
                               metadata.file = NULL,
-                              rm.pops = NULL,
-                              select.pops = NULL) {
+                              subset.name = NULL) {
     
+    metadata <- read.csv(metadata.file, stringsAsFactors = FALSE)
+
+    if (!is.null(subset.name)) {
+        if (!subset.name %in% names(metadata)) {
+            stop("Error: the subset that you provided is not specified in the metadata.")
+        }
+    }
+
     # read the VCF file using the 'vcfR' package
     vcf <- read.vcfR(vcf.file)
     # Grab the metadata from the VCF file
@@ -97,16 +104,23 @@ getGenotypeMatrix <- function(vcf.file = NULL,
 
     # Next we will map the metadata onto the genotype matrix and combine them both
     # into a single object.
-    metadata <- read.csv(metadata.file, stringsAsFactors = FALSE)
 
-    if (!is.null(rm.pops)) {
-        G <- G[, -which(metadata$Pop.ID %in% rm.pops)]
-        Pop.ID <- metadata$Pop.ID[-which(metadata$Pop.ID %in% rm.pops)]
-    }
-
-    if (!is.null(select.pops)) {
-        G <- G[, which(metadata$Pop.ID %in% select.pops)]
-        Pop.ID <- metadata$Pop.ID[which(metadata$Pop.ID %in% select.pops)]
+    if (!is.null(subset.name)) {
+        # Select the indices that have been specified with a 1 in the metadata
+        G <- G[, which(metadata[, subset.name] == 1)]
+        Pop.ID <- metadata$Pop.ID[which(metadata[, subset.name] == 1)]
+        Sample.ID <- metadata$Sample.ID[which(metadata[, subset.name] == 1)]
+        # Name the file according to the subset that the user has provided.
+        file.name <- paste("genotypeMatrix_", 
+                            gsub("\\.", "_", subset.name), 
+                            ".rds", sep="")
+    } else {
+        # Name the file in case that no subset.name is provided
+        file.name <- "genotypeMatrix.rds"
+    
+        # Get population and sample IDs. May be reset if subset is provided.
+        Pop.ID <- metadata$Pop.ID
+        Sample.ID <- metadata$Sample.ID
     }
 
     # Remove sites where all individuals are heterozygotes.
@@ -115,69 +129,24 @@ getGenotypeMatrix <- function(vcf.file = NULL,
     allData <- list(G = G[-allFixedSites, ],
                     Pos = POS[-allFixedSites],
                     Chr = factor.chromosome[-allFixedSites],
-                    Pop.ID = Pop.ID)
+                    Pop.ID = Pop.ID,
+                    Sample.ID = Sample.ID)
     
     # End of the conversion from VCF to genotype matrix.
     # Save allData for the sake of time when doing additional analysis
 
     data.path <- file.path("data", "large_data")
-    
-    if (!is.null(rm.pops)) {
-        file.name <- paste("genotypeMatrix_excluding_", 
-                            paste(rm.pops, collapse="_"), 
-                            ".rds",
-                            sep="")
-        write(paste(CHR[allFixedSites],
-                    POS[allFixedSites], 
-                    sep='    '),
-                    paste("fixed_sites_excluding_", 
-                          paste(rm.pops, collapse="_"), 
-                          ".txt", 
-                          sep=""))
-    } else if (!is.null(select.pops)) {
-        file.name <- paste("genotypeMatrix_selecting_",
-                            paste(select.pops, collapse="_"), 
-                            ".rds",
-                            sep="")
-        write(paste(CHR[allFixedSites],
-                    POS[allFixedSites], 
-                    sep='    '),
-                    paste("fixed_sites_selecting_", 
-                          paste(rm.pops, collapse="_"), 
-                          ".txt", 
-                          sep=""))
-    } else {
-        file.name <- "genotypeMatrix_allpops.rds"
-        write(paste(CHR[allFixedSites],
-                    POS[allFixedSites], 
-                    sep='    '),
-                    "fixed_sites_selecting_allpops.txt")
-    }
 
     saveRDS(allData, paste(data.path, file.name, sep="/"))
 
     return(paste(data.path, file.name, sep="/"))
-
-    # Not sure if what is below is needed. Put this in to include some of the
-    # metadata for downstream analysis and plotting but I don't think it is
-    # being used.
-    # - KBW
-
-    #genotypeMatrixAndMetadata <- list(genotype = allData$genotype,
-    #                                  fam = data.frame(pop.id = metadata$custom.id,
-    #                                                   plot.id = metadata$plot.id),
-    #                                  map = data.frame(positions = allData$positions,
-    #                                                   chromosome = allData$chromosome))
-
-    #saveRDS(genotypeMatrixAndMetadata, 'genotypeMatrixAndMetadata.rds')
 }
 
 # Performing SNP thinning, removal of long-range LD regions and PCA using the
 # 'bigsnpr' package
 
 getThinnedSnps <- function(data = NULL,
-                           rm.pops = NULL,
-                           select.pops = NULL,
+                           subset.name = NULL,
                            pca.loadings = 13, 
                            window = 5000, 
                            nb.cores = 4){
@@ -207,33 +176,18 @@ getThinnedSnps <- function(data = NULL,
                                   is.size.in.bp = TRUE,
                                   ncores = nb.cores)
     
-    # I realize this is maybe not the most efficient way to do this but it works
-    # and I can't think of any other way to get the populations we are selecting
-    # into file names other than this.
-    if (!is.null(rm.pops)) {
+    
+    if (!is.null(subset.name)) {
         file.name <- paste("thinnedMatrixAndMetaData",
                             window, 
-                            "Window_excluding_", 
-                            paste(rm.pops, collapse="_"), 
+                            "Window_", 
+                            gsub("\\.", "_", subset.name), 
                             ".rds",
                             sep="")
         svd.name <- paste("fullDatasetSVDStats", 
                           window, 
-                          "Window_excluding_", 
-                          paste(rm.pops, collapse="_"), 
-                          ".rds", 
-                          sep = "")
-    } else if (!is.null(select.pops)) {
-        file.name <- paste("thinnedMatrixAndMetaData",
-                            window, 
-                            "Window_selecting_", 
-                            paste(select.pops, collapse="_"), 
-                            ".rds",
-                            sep="")
-        svd.name <- paste("fullDatasetSVDStats", 
-                          window, 
-                          "Window_selecting_", 
-                          paste(select.pops, collapse="_"), 
+                          "Window_", 
+                          gsub("\\.", "_", subset.name), 
                           ".rds", 
                           sep = "")
     } else {
@@ -254,7 +208,8 @@ getThinnedSnps <- function(data = NULL,
     thinnedMatrixAndMetaData <- list(G = allData$G[attr(fullDatasetSVD, "subset"), ],
                                      Pos = allData$Pos[attr(fullDatasetSVD, "subset")],
                                      Chr = allData$Chr[attr(fullDatasetSVD, "subset")],
-                                     Pop.ID = allData$Pop.ID)
+                                     Pop.ID = allData$Pop.ID,
+                                     Sample.ID = allData$Sample.ID)
 
     # Save the R object containin the data in a .rds file. 
     saveRDS(thinnedMatrixAndMetaData, paste(data.path, file.name, sep="/"))
@@ -272,37 +227,23 @@ getThinnedSnps <- function(data = NULL,
 
 getSubsets <- function(data = NULL, 
                        window = NULL,
-                       rm.pops = NULL,
-                       select.pops = NULL){
+                       subset.name = NULL){
 
     postAnalysisData <- readRDS(data)
 
     data.path <- "data/thinned_snps/"
 
-    if (!is.null(rm.pops)) {
+    if (!is.null(subset.name)) {
         name.50K <- paste("50KRandomSNPs",
                           window, 
-                          "Window_excluding_", 
-                          paste(rm.pops, collapse="_"), 
+                          "Window_", 
+                          gsub("\\.", "_", subset.name), 
                           ".rds",
                           sep="")
         name.20K <- paste("20KRandomSNPs", 
                           window, 
-                          "Window_excluding_", 
-                          paste(rm.pops, collapse="_"), 
-                          ".rds", 
-                          sep = "")
-    } else if (!is.null(select.pops)) {
-        name.50K <- paste("50KRandomSNPs",
-                            window, 
-                            "Window_selecting_", 
-                            paste(select.pops, collapse="_"), 
-                            ".rds",
-                            sep="")
-        name.20K <- paste("20KRandomSNPs", 
-                          window, 
-                          "Window_selecting_", 
-                          paste(select.pops, collapse="_"), 
+                          "Window_", 
+                          gsub("\\.", "_", subset.name), 
                           ".rds", 
                           sep = "")
     } else {
@@ -344,7 +285,8 @@ getSubsets <- function(data = NULL,
     random20Subset <- list(G = postAnalysisData$G[random20, ],
                            Pos = postAnalysisData$Pos[random20],
                            Chr = postAnalysisData$Chr[random20],
-                           Pop.ID = postAnalysisData$Pop.ID)
+                           Pop.ID = postAnalysisData$Pop.ID,
+                           Sample.ID = postAnalysisData$Sample.ID)
     # Write chromosome and positions of the thinned randomly selected SNPs to txt 
     # file
     write(paste(CHR[random20Subset$Chr],
@@ -380,7 +322,8 @@ getSubsets <- function(data = NULL,
     random50Subset <- list(G = postAnalysisData$G[random50, ],
                            Pos = postAnalysisData$Pos[random50],
                            Chr = postAnalysisData$Chr[random50],
-                           Pop.ID = postAnalysisData$Pop.ID)
+                           Pop.ID = postAnalysisData$Pop.ID,
+                           Sample.ID = postAnalysisData$Sample.ID)
 
     # Write chromosome and positions of the thinned randomly selected SNPs to txt 
     # file
@@ -394,32 +337,31 @@ getSubsets <- function(data = NULL,
 
 ###############################################################################
 
-getDataWrapper <- function(vcf.file = "data/Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz",
+getDataWrapper <- function(vcf.file = "data/large_data/Combined.SNP.TRSdp5g1FnDNAmaf052alleles.vcf.gz",
                            metadata.file = "data/modified_samplemetadata.csv",
+                           subset.name = subset.name,
                            window = 5000,
                            pca.loadings = 13,
-                           nb.cores = 4,
-                           rm.pops = NULL,
-                           select.pops = NULL){
+                           nb.cores = 4){
     # Run the preprocessing function. This function will return the path to the
     # processed data to feed into the thinning function.
     data.path <- getGenotypeMatrix(vcf.file = vcf.file,
                                    metadata.file = metadata.file,
-                                   rm.pops = rm.pops,
-                                   select.pops = select.pops)
+                                   subset.name = subset.name)
     # Run the thinning function on the genotype matrix data. The function will
     # also return the path to the data.
     thinned.path <- getThinnedSnps(data = data.path,
-                                   rm.pops = rm.pops,
-                                   select.pops = select.pops,
+                                   subset.name = subset.name,
                                    pca.loadings = pca.loadings, 
                                    window = window, 
                                    nb.cores = nb.cores)
 
     getSubsets(data = thinned.path, 
                window = window,
-               rm.pops = rm.pops,
-               select.pops = select.pops)
+               subset.name = subset.name)
 }
 
-getDataWrapper(rm.pops=c("LM", ))
+getDataWrapper(subset.name = "exclude.LM", window = 5000)
+getDataWrapper(subset.name = "exclude.LM", window = 50000)
+getDataWrapper(subset.name = "unrelated", window = 5000)
+getDataWrapper(subset.name = "unrelated", window = 50000)
