@@ -85,9 +85,10 @@ getGenotypeMatrix <- function(vcf.file = NULL,
     assign("POS", POS, envir = .GlobalEnv)
     # Get chromosome information.
     CHR <- getCHROM(vcf)
-    assign("CHR", CHR, envir = .GlobalEnv)
     # Factoring the different chromosomes so they can be encoded as integer values.
     factor.chromosome <- as.integer(factor(CHR))
+
+    assign("CHR", sort(unique(CHR)), envir = .GlobalEnv)
 
     # Matrix to hold binary values...
     G <- matrix(NA, nrow = nrow(geno), ncol = ncol(geno))
