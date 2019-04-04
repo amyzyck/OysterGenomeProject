@@ -8,6 +8,12 @@
 
 
 ![graph](../figures/envi_analysis/lfmm_ridge_mean_annual_temp_test_chr1.png "lfmm plot")
+
+
 ![graph2](../figures/envi_analysis/spearmans_mean_temp_chr1.png "cor plot")
 
-The comparison between correlation and lfmm ridge provides a quick sanity check, the signals seem to be in the same place
+
+![graph3](../figures/envi_analysis/spCor_vs_LFMM_ridge.png "cor vs ridge plot")
+
+
+The comparison between correlation and lfmm ridge provides a quick sanity check, the signals seem to show a positive correlation with each other
