@@ -12,9 +12,9 @@ library(lfmm)
 # populationStructureScript.R and subsets it to only include wild type
 # populations
 #########################################################################
-setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers")
+# setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers")
 ### Read in RDS and metadata
-allData        <- readRDS("data/genotypeMatrix_excluding_LM.rds")
+#allData        <- readRDS("data/genotypeMatrix_excluding_LM.rds")
 metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
 
@@ -49,21 +49,24 @@ comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
 wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
 
 
-calcEnviLFMMandSpRho(envi_var, pop_object){
+calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   # scale genotype matrix
   scaled.genotype <- scale(as.matrix(t(pop_object$G)))
   # create a temperature matrix
   envi        <- comb_metadata[envi_var]
   envi        <- envi[which(comb_metadata$Wild.Sel == "W"), ]
-  envi_matrix <- matrix(data = temp, nrow = length(temp), ncol = 1)
+  envi_matrix <- matrix(data = envi, nrow = length(envi), ncol = 1)
   scaled.envi <- scale(envi_matrix)
   
   # build lfmm ridge model
+  print("Building lfmm ridge model")
   lfmm.ridge <- lfmm::lfmm_ridge(Y = scaled.genotype, X = scaled.envi, K = 3, lambda = 1e-4)
   # perform association testing
+  print("Running lfmm test")
   lfmm.test.ridge <- lfmm::lfmm_test(Y = scaled.genotype, X = scaled.envi, lfmm = lfmm.ridge, calibrate = "gif")
   
   # save the ridge objects, now it makes sense to move from comp5 to my local machine to inspect the results in a GUI
+  print("Saving lfmm objects")
   saveRDS(lfmm.ridge, paste("data", "lfmm_ridge_results_mean_annual_temp.rds", sep = "/"))
   saveRDS(lfmm.test.ridge, paste("data", "lfmm_ridge_test_results_mean_annual_temp.rds", sep = "/"))
   
@@ -81,7 +84,7 @@ calcEnviLFMMandSpRho(envi_var, pop_object){
   #hist(p.values.ridge, col = "lightgreen", main="LFMM ridge")
   #qval <- qvalue::qvalue(p.values.ridge)
   #plot(qval)
-  
+  print("Plotting LF 1 and 2")
   png(paste("LFMM_ridge_0.0", envi_var, "LF_plot.png"))
   plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$Wild.Sel=="W"),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
@@ -96,15 +99,20 @@ calcEnviLFMMandSpRho(envi_var, pop_object){
   
   
   # spearman's correlation
-  spCor <- cor(scaled.envi, scaled.genotype, method = "spearman")
+  print("Calculating spearman's correlation")
+  absSpCor <- abs(cor(scaled.envi, scaled.genotype, method = "spearman"))
   #plot(wild$Pos[which(wild$Chr ==1)], abs(spCor), xlab = "Pos", 
   #     main = "Spearman's Correlation")
   
   unique_ID <- sprintf("%02d_%09d", pop_object$Chr, pop_object$Pos)
-  out_table <- data.frame(pos = pop_object$Pos, chr = pop_object$Chr, 
-                          unique = unique_ID, 
-                          paste("LFMM_ridge_0.0_log10p", envi_var, sep = "_") = LFMM_ridge_0.0_log10p,
-                          paste("Abs_Spearmanns_Rho", envi_var, sep = "_") = abs(spCor))
+  print("Creating data frame")
+  
+  out_table <- data.frame(pop_object$Pos, pop_object$Chr, 
+                          unique_ID, LFMM_ridge_0.0_log10p, absSpCor)
+  print("Naming data frame") 
+  names(out_table) <- c("pos", "chr", "unique", paste("LFMM_ridge_0.0_log10p", envi_var, sep = "_"),
+                        paste("Spearmanns_Rho_ABS", envi_var, sep = "_"))
+  print("saving dataframe")
   write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "/assoc_results.txt"), 
               quote = FALSE, sep = "\t")
 }
