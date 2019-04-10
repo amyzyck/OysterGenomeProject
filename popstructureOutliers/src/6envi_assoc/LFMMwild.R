@@ -29,9 +29,9 @@ common_cols <- common_cols[! common_cols %in% c("NOTES", "Ecotype", "Sex")]  # r
 comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
 
 # ### Select only Wild populations to rewrite matrix
-# wild        <- allData
-# wild$G      <- allData$G[, which(comb_metadata$Wild.Sel == "W")]
-# wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$Wild.Sel == "W")]
+wild        <- allData
+wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
+wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
 # 
 # # The genotype matrix has some fixed values, remove them before proceeding
 # variances <- apply(wild$G, 1, var)
@@ -54,7 +54,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   scaled.genotype <- scale(as.matrix(t(pop_object$G)))
   # create a temperature matrix
   envi        <- comb_metadata[envi_var]
-  envi        <- envi[which(comb_metadata$Wild.Sel == "W"), ]
+  envi        <- envi[which(comb_metadata$wild_for_assoc == 1), ]
   envi_matrix <- matrix(data = envi, nrow = length(envi), ncol = 1)
   scaled.envi <- scale(envi_matrix)
   
@@ -86,7 +86,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   #plot(qval)
   print("Plotting LF 1 and 2")
   png(paste("LFMM_ridge_0.0", envi_var, "LF_plot.png"))
-  plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$Wild.Sel=="W"),]$color, pch = 19, 
+  plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
   text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = wild$Pop.ID, cex = 0.6)
   dev.off()
