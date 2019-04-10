@@ -7,13 +7,13 @@
 - Got my first set of results, environmental association test between mean_temperature_celsius and genotype for Chromosome 1
 
 
-![graph](../figures/envi_analysis/lfmm_ridge_mean_annual_temp_test_chr1.png "lfmm plot")
+![graph](../figures/6envi_assoc/lfmm_ridge_mean_annual_temp_test_chr1.png "lfmm plot")
 
 
-![graph2](../figures/envi_analysis/spearmans_mean_temp_chr1.png "cor plot")
+![graph2](../figures/6envi_assoc/spearmans_mean_temp_chr1.png "cor plot")
 
 
-![graph3](../figures/envi_analysis/spCor_vs_LFMM_ridge.png "cor vs ridge plot")
+![graph3](../figures/6envi_assoc/spCor_vs_LFMM_ridge.png "cor vs ridge plot")
 
 
 The comparison between correlation and lfmm ridge provides a quick sanity check, the signals seem to show a positive correlation with each other
