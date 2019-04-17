@@ -89,29 +89,32 @@ manhattan.ld.plot <- function (path = NULL,
 
     ld_sub$movave[which_ave] <- mov_ave(ld_sub$POS1[which_ave], ld_sub$R.2[which_ave], window_size)
 
-    d <- ggplot(ld_sub, aes(POS1, R.2))
-    d2 <- ggplot(ld_sub, aes(POS1, movave))
+    d <- ggplot(ld_sub, aes(POS1, R.2)) + theme(panel.grid.major = element_blank(), 
+                                                panel.grid.minor = element_blank(),
+                                                panel.background = element_blank(), 
+                                                axis.line = element_line(colour = "black"))
+    d2 <- ggplot(ld_sub, aes(POS1, movave)) + theme(panel.grid.major = element_blank(), 
+                                                panel.grid.minor = element_blank(),
+                                                panel.background = element_blank(), 
+                                                axis.line = element_line(colour = "black"))
 
     results.path <- file.path("figures/1LD_analysis/ld_on_manhtn", subset, ld.window)
     if (!dir.exists(results.path)) {
       dir.create(results.path, recursive = TRUE)
     }
 
-    pdf(paste0(results.path, "/", chrs[i], "_LDplot_", ld.window, "_", subset, ".pdf"), width=20, height=5)
+    pdf(paste0(results.path, "/", chrs[i], "_LDplot_", ld.window, "_", subset, ".pdf"), width=25, height=5)
     layout(1)
     par(mar = c(3,4,3,1))
     #plot(ld_sub$POS1, ld_sub$R.2)
-    d <- d + geom_hex(binwidth = c(200000, 0.05)) + 
-             labs(x = paste(chrs[i], nrow(ld_sub)), y = paste("R^2 for", ld.window, sep=" ")) + 
-             ylim(c(0, 1)) + 
-             scale_fill_gradientn(colors = two.colors(100, 
-                                                      start = "#56B1F7", 
-                                                      end = "red", 
-                                                      middle = "black"))
     if (i %in% misassembled) {
       brk.tmp <- breakpoints[which(breakpoints$Chr == i), ]
       #ld_sub$Low <- brk.tmp$Low
       #ld_sub$High <- brk.tmp$High
+      d <- d + geom_vline(xintercept = snp.pos, 
+                          color = "lightgrey",
+                          alpha = 0.2, 
+                          size = 0.1)
       for (j in 1:nrow(brk.tmp)) {
         d <- d + annotate("rect",
                           xmin = brk.tmp$Low[j], 
@@ -119,16 +122,40 @@ manhattan.ld.plot <- function (path = NULL,
                           ymin = -Inf, 
                           ymax = Inf,
                           fill = "green", 
-                          alpha = 0.3)
+                          alpha = 0.2)
       }
     }
-    d <- d + geom_vline(data = snp.pos, color = "lightgrey")
+    d <- d + geom_hex(binwidth = c(200000, 0.05)) + 
+             labs(x = paste(chrs[i], nrow(ld_sub)), y = paste("R^2 for", ld.window, sep=" ")) + 
+             ylim(c(0, 1)) + 
+             scale_fill_gradientn(colors = two.colors(100, 
+                                                      start = "#56B1F7", 
+                                                      end = "red", 
+                                                      middle = "black"))
     print(d)
 
     # first element of bin width is bp
 
     #plot(ld_sub$POS1, ld_sub$movave, pch=19, col=rgb(0,0,1,0.1),
     #     main = paste(i, chrs[i]))
+    if (i %in% misassembled) {
+      brk.tmp <- breakpoints[which(breakpoints$Chr == i), ]
+      #ld_sub$Low <- brk.tmp$Low
+      #ld_sub$High <- brk.tmp$High
+      d2 <- d2 + geom_vline(xintercept = snp.pos, 
+                            color = "lightgrey",
+                            alpha = 0.2, 
+                            size = 0.1)
+      for (j in 1:nrow(brk.tmp)) {
+        d2 <- d2 + annotate("rect",
+                            xmin = brk.tmp$Low[j], 
+                            xmax = brk.tmp$High[j], 
+                            ymin = -Inf, 
+                            ymax = Inf,
+                            fill = "green", 
+                            alpha = 0.2)
+      }
+    }
     d2 <- d2 + geom_hex(binwidth = c(200000, 0.05)) +
                labs(x = paste(chrs[i], nrow(ld_sub)), 
                     y = paste("R^2 for", ld.window, "moving window", window_size)) +
@@ -137,21 +164,6 @@ manhattan.ld.plot <- function (path = NULL,
                                                         start = "#56B1F7", 
                                                         end = "red", 
                                                         middle = "black"))
-    if (i %in% misassembled) {
-      brk.tmp <- breakpoints[which(breakpoints$Chr == i), ]
-      #ld_sub$Low <- brk.tmp$Low
-      #ld_sub$High <- brk.tmp$High
-      for (j in 1:nrow(brk.tmp)) {
-        d2 <- d2 + annotate("rect",
-                            xmin = brk.tmp$Low[j], 
-                            xmax = brk.tmp$High[j], 
-                            ymin = -Inf, 
-                            ymax = Inf,
-                            fill = "green", 
-                            alpha = 0.3)
-      }
-    }
-    d2 <- d2 + geom_vline(data = snp.pos, color = "lightgrey")
     print(d2)
 
     hist(ld_sub$R.2, breaks = seq(0,1, by = 0.01))  
@@ -161,7 +173,22 @@ manhattan.ld.plot <- function (path = NULL,
   }
 }
 
-manhattan.ld.plot(path = "data/large_data/ldAnalysisData/excluding_LM/",
-                  thinned.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+# manhattan.ld.plot(path = "data/large_data/ldAnalysisData/excluding_LM/",
+#                   thinned.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+#                   ld.window = "49500-50000",
+#                   subset = "excluding_LM")
+# 
+# manhattan.ld.plot(path = "data/large_data/ldAnalysisData/excluding_LM/",
+#                   thinned.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+#                   ld.window = "4500-5000",
+#                   subset = "excluding_LM")
+
+manhattan.ld.plot(path = "data/large_data/ldAnalysisData/unrelated/",
+                  thinned.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
                   ld.window = "49500-50000",
-                  subset = "excluding_LM")
+                  subset = "unrelated")
+
+manhattan.ld.plot(path = "data/large_data/ldAnalysisData/unrelated/",
+                  thinned.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
+                  ld.window = "4500-5000",
+                  subset = "unrelated")

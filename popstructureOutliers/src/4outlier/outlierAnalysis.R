@@ -19,129 +19,120 @@
 ###############################################################################
 
 library(OutFLANK)
-source("OutFLANKv2.R")
+source("src/4outlier/OutFLANKv2.R")
 library(pcadapt)
 library(bigsnpr)
+library(dplyr)
 
-preprocess.fstByChr <- function(data,
-                                metadata,
-                                chr.index, 
-                                rm.pops = NULL, 
-                                select.pops = NULL) {
+getFixedSites <- function(genotype.matrix = NULL) {
+    # Convert to format (file-backed matrix; 'FBM') that Prive uses
+    # in his walk-through.
+
+    no.samples <- ncol(genotype.matrix)
+
+    G_FBM <- add_code256(big_copy(t(genotype.matrix), type="raw"),
+                         code = bigsnpr:::CODE_012)
+
+    # Search all of the SNP sites where there is no variation among individuals (all have
+    # a value of 0, 1, or 2)
+    counts <- big_counts(G_FBM)
+    fixed.sites <- NULL
+    for (i in 1:3) {
+        fixed.sites <- c(fixed.sites, which(counts[i, ] == no.samples))
+    }
+    return(fixed.sites)
+}
+
+preprocess.fstByChr <- function(data = NULL,
+                                metadata = NULL,
+                                chr.index = NULL, 
+                                subset.name = NULL) {
     # Load the genotype matrix that has been provided
     data <- readRDS(data)
 
     # Load metadata to check the population identifiers agaisnt that the user has provided.
     metadata <- read.csv(metadata)
 
-    # Check if the user has provided pop ids that for exclusion and inclusion at the same time
-    if (length(rm.pops) != 0 && length(select.pops) != 0) {
-        stop("Error: Only one of the parameters 'rm.pops' and 'select.pops' should be provided by the user.")
-    }
-
     # Selecting just one chromosome to decouple the data processing
-    one.chr <- list(genotype = data$genotype[which(data$chromosome == chr.index),],
-                    position = data$positions[which(data$chromosome == chr.index)],
-                    chromosome = data$chromosome[which(data$chromosome == chr.index)],
-                    sample.id = data$sample.id)
-    # If the user has provided any populations to remove, select it and remove
-    # the column associated with it from the genotype matrix
-    if (length(rm.pops) != 0) {
-        # Check if the correct data format is being used
-        if (typeof(rm.pops) != "character") {
-            stop("The parameter 'rm.pops' must be a character vector")
-        }
-        # Check if the populations specified are in the metadata
-        if (!all(rm.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to remove is not in the data")
-        }
-        one.chr$genotype <- one.chr$genotype[, -which(one.chr$sample.id %in% rm.pops)]
-        one.chr$sample.id <- data$sample.id[-which(one.chr$sample.id %in% rm.pops)]
-        
-    }
+    one.chr <- list(G = data$G[which(data$Chr == chr.index),],
+                    Pos = data$Pos[which(data$Chr == chr.index)],
+                    Chr = data$Chr[which(data$Chr == chr.index)],
+                    Pop.ID = data$Pop.ID,
+                    Sample.ID = data$Sample.ID)
 
-    # If populations have been selected to include only...
-    if (length(select.pops) != 0) {
+    # If the user has provided a subset to use, select it and remove
+    # the column associated with it from the genotype matrix
+    if (!is.null(subset.name)) {
         # Check if the correct data format is being used
-        if (typeof(select.pops) != "character") {
-            stop("The parameter 'select.pops' must be a character vector")
+        if (!subset.name %in% names(metadata)) {
+            stop("Error: the subset that you have provided is not specified in the provided metadata.")
         }
-        # Check if the populations specified are in the metadata
-        if (!all(select.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to keep is not in the data")
+        # Get Sample.ID from 'metadata' that need to be removed
+        rm.samples <- metadata$Sample.ID[which(metadata[, subset.name] == 0)]
+        #Check to see if any of the samples in the subset are in the data.
+        if (!any(one.chr$Sample.ID %in% rm.samples)) {
+            # If there are no samples specified by the subset in the data, stop.
+
+        } else {
+            one.chr$G <- one.chr$G[, -which(one.chr$Sample.ID %in% rm.samples)]
+            one.chr$Pop.ID <- one.chr$Pop.ID[-which(one.chr$Sample.ID %in% rm.samples)]
+            one.chr$Sample.ID <- one.chr$Sample.ID[-which(one.chr$Sample.ID %in% rm.samples)]
         }
-        # Removing the specified populations from the full data
-        one.chr$genotype <- one.chr$genotype[, which(one.chr$sample.id %in% select.pops)]
-        one.chr$sample.id <- one.chr$sample.id[which(one.chr$sample.id %in% select.pops)]
+    }
+    
+    # Check for any sites that are fixed across all individuals left in the data.
+    fixed.sites <- getFixedSites(one.chr$G)
+    # Remove any fixed sites found
+    if (length(fixed.sites) != 0) {
+        one.chr$G <- one.chr$G[-fixed.sites, ]
+        one.chr$Pos <- one.chr$Pos[-fixed.sites]
+        one.chr$Chr <- one.chr$Chr[-fixed.sites]
     }
     # Throw an error if the number of samples does not correspond to the number
     # of columns provided.
-    if (length(one.chr$sample.id) != ncol(one.chr$genotype)) {
-        stop("Number of individuals in dataset and labels does not match")
+    if (length(one.chr$Pop.ID) != ncol(one.chr$G)) {
+        stop("Number of Pop.ID in dataset and labels does not match")
     }
+    
+    if (length(one.chr$Sample.ID) != ncol(one.chr$G)) {
+        stop("Number of Sample.ID in dataset and labels does not match")
+    }
+
     # Return the processed data
     return(one.chr)
 }
 
-fstByChromosome <- function(data.file, 
-                            chr.index = seq(1, 10),  
-                            rm.pops = NULL, 
-                            select.pops = NULL,
+fstByChromosome <- function(data.file,
+                            metadata,
+                            subset.name = NULL,
+                            chr.index = seq(1, 10),
                             data.path = NULL, 
                             plots.path = NULL) {
+    # Create path for output
     data.path <- file.path(data.path, "fstByChromosome")
     if (!dir.exists(data.path)) {
         dir.create(data.path)
     }
-    
+    # Run the preprocess funtion and calculate fst matrix for each chromosome 
     for (i in chr.index) {
-        preprocessedData <- preprocess.fstByChr(data.file, 
-                                                chr.index = i, 
-                                                rm.pops = rm.pops, 
-                                                select.pops = select.pops)
+        preprocessedData <- preprocess.fstByChr(data.file,
+                                                metadata,
+                                                subset.name = subset.name,
+                                                chr.index = i)
 
-        #keep <- apply(preprocessedData$genotype, 1, function(x) length(unique(x[!is.na(x)])) != 1)
-        #preprocessedData$genotype <- preprocessedData$genotype[keep, ]
-        #preprocessedData$positions <- preprocessedData$positions[keep]
-        #preprocessedData$chromosome <- preprocessedData$chromosome[keep]
+        fst.stat <- MakeDiploidFSTMat(t(preprocessedData$G), 
+                                      locusNames = preprocessedData$Pos, 
+                                      popNames = preprocessedData$Pop.ID)
 
-        fst.stat <- MakeDiploidFSTMat(t(preprocessedData$genotype), 
-                                      locusNames = preprocessedData$position, 
-                                      popNames = preprocessedData$sample.id)
+        fst.stat$Pos <- fst.stat$LocusName
 
-        colnames(fst.stat)[1] <- "POS"
+        fst.stat$Chr <- i 
 
-        fst.stat$CHR <- i 
-
-        if (length(rm.pops) == 0 && length(select.pops) == 0) {
-            colnames(fst.stat)[2:ncol(fst.stat)] <- paste("OutFLANK_0.2_PopSet_allpops", 
-                                      colnames(fst.stat)[2:ncol(fst.stat)],
-                                      sep="_")
-            fst.stat$unique.id <- paste("chr_", i, "_pos_", fst.stat$POS, sep="")
-            saveRDS(fst.stat, paste(data.path, 
-                                    "/fstByChromosome_chr", i, 
-                                    "_allpops.rds", sep=""))
-        } else if (length(rm.pops) != 0) {
-            colnames(fst.stat)[2:ncol(fst.stat)] <- paste("OutFLANK_0.2_PopSet",
-                                      "excluding", paste(rm.pops, collapse="_"), 
-                                      colnames(fst.stat)[2:ncol(fst.stat)],
-                                      sep="_")
-            fst.stat$unique.id <- paste("chr_", i, "_pos_", fst.stat$POS, sep="")
-            saveRDS(fst.stat, paste(data.path, 
-                                    "/fstByChromosome_chr", i, "_excludingpops_", 
-                                    paste(rm.pops, collapse="_"), 
-                                    ".rds", sep=""))
-        } else {
-            colnames(fst.stat)[2:ncol(fst.stat)] <- paste("OutFLANK_0.2_PopSet",
-                                      "selecting", paste(select.pops, collapse="_"), 
-                                      colnames(fst.stat)[2:ncol(fst.stat)],
-                                      sep="_")
-            fst.stat$unique.id <- paste("chr_", i, "_pos_", fst.stat$POS, sep="")
-            saveRDS(fst.stat, paste(data.path, 
-                                    "/fstByChromosome_chr", i, "_selectingpops_", 
-                                    paste(select.pops, collapse="_"),
-                                    ".rds", sep=""))
-        }
+        saveRDS(fst.stat, paste(data.path, 
+                                "/fstByChromosome_chr", i, 
+                                "_", gsub("\\.", "_", subset.name), 
+                                ".rds",
+                                sep=""))
     }
 }
 
@@ -163,106 +154,49 @@ fstByChromosome <- function(data.file,
 
 preprocess.neutralParams <- function(rand.snps,
                                      metadata,
-                                     rm.pops = NULL,
-                                     select.pops = NULL) {
+                                     subset.name = NULL) {
     # Load data with subset of random independent SNPs
     data <- readRDS(rand.snps)
     # Load metadata to check the population IDs that are given by the user.
     metadata <- read.csv(metadata)
-    # Check if the user has provided pop ids that for exclusion and inclusion at the same time
-    if (length(rm.pops) != 0 && length(select.pops) != 0) {
-        stop("Error: Only one of the parameters 'rm.pops' and 'select.pops' should be provided by the user.")
-    }
 
     # Need to remove any populations that should be excluded from the neutral
     # paramaterization.
-    if (length(rm.pops) != 0) {
-        # Check if the correct data format is being used
-        if (typeof(rm.pops) != "character") {
-            stop("The parameter 'rm.pops' must be a character vector")
+    if (!is.null(subset.name)) {
+        if (!subset.name %in% names(metadata)){
+            stop("Error: the subset that you have provided is not specified in the metadata")
         }
-        # Check if the populations specified are in the metadata
-        if (!all(rm.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to remove is not in the data")
+        # Get Sample.ID from 'metadata' that need to be removed
+        rm.samples <- metadata$Sample.ID[which(metadata[, subset.name] == 0)]
+        #Check to see if any of the samples in the subset are in the data.
+        if (!any(data$Sample.ID %in% rm.samples)) {
+            # If there are no samples specified by the subset in the data        
+        } else {
+            data$G <- data$G[, -which(data$Sample.ID %in% rm.samples)]
+            data$Pop.ID <- data$Pop.ID[-which(data$Sample.ID %in% rm.samples)]
+            data$Sample.ID <- data$Sample.ID[-which(data$Sample.ID %in% rm.samples)]
         }
-        data$G <- data$G[, -which(data$sample.id %in% rm.pops)]
-        data$sample.id <- data$sample.id[-which(data$sample.id %in% rm.pops)]
     }
 
-    if (length(select.pops) != 0) {
-        # Check if the correct data format is being used
-        if (typeof(select.pops) != "character") {
-            stop("The parameter 'rm.pops' must be a character vector")
-        }
-        # Check if the populations specified are in the metadata
-        if (!all(select.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to remove is not in the data")
-        }
-        data$G <- data$G[, which(data$sample.id %in% select.pops)]
-        data$sample.id <- data$sample.id[which(data$sample.id %in% select.pops)]
-    }
+    fixed.sites <- getFixedSites(data$G)
+    if (length(fixed.sites) != 0) {
+        data$G <- data$G[-fixed.sites, ]
+        data$Pos <- data$Pos[-fixed.sites]
+        data$Chr <- data$Chr[-fixed.sites]
+    }    
 
-    if (length(data$sample.id) != ncol(data$G)) {
-        stop("Number of individuals in dataset and labels does not match")
+    if (length(data$Pop.ID) != ncol(data$G)) {
+        stop("Number of Pop.ID in dataset and labels does not match")
+    }
+    
+    if (length(data$Sample.ID) != ncol(data$G)) {
+        stop("Number of Sample.ID in dataset and labels does not match")
     }
 
     return(data)
 }
 
 altered.outflank <- function(data, NumberOfSamples) {
-    outflank.data <- OutFLANK.v2(data, 
-                                 NumberOfSamples = NumberOfSamples, 
-                                 qthreshold = 0.05, 
-                                 Hmin = 0.1)
-    return(outflank.data)
-}
-
-neutralParams <- function (rand.snps, 
-                           rm.pops = NULL,
-                           select.pops = NULL,
-                           data.path = NULL, 
-                           plots.path = NULL) {
-    if (length(data.path) == 0 | length(plots.path) == 0) {
-        stop("Error: No file path given for data or plots")
-    }
-    data.path <- file.path(data.path, "neutralParams")
-    if (!dir.exists(data.path)) {
-        dir.create(data.path)
-    }
-    plots.path <- file.path(plots.path, "neutralParams")
-    if (!dir.exists(plots.path)) {
-        dir.create(plots.path)
-    }
-
-    tmp <- strsplit(rand.snps, split="/")[[1]]
-    rand.file <- strsplit(tmp[length(tmp)], split=".rds")[[1]]    
-    
-    subset.data <- preprocess.neutralParams(rand.snps = rand.snps, 
-                                            rm.pops = rm.pops, 
-                                            select.pops = select.pops)
-
-    
-    # subset.keep <- apply(subset.data$G, 1, function(x) length(unique(x[!is.na(x)])) != 1)
-    # subset.data$G <- subset.data$G[subset.keep, ]
-    # subset.data$positions <- subset.data$positions[subset.keep]
-    # subset.data$chromosomes <- subset.data$chromosome[subset.keep]
-
-    pops <- length(unique(subset.data$sample.id))
-
-    fst.stat <- MakeDiploidFSTMat(t(subset.data$G), 
-                                  locusNames = subset.data$positions, 
-                                  popNames = subset.data$sample.id)
-
-    outflank.data <- tryCatch(OutFLANK(fst.stat, 
-                                       NumberOfSamples = pops, 
-                                       qthreshold = 0.05, 
-                                       Hmin = 0.1),
-                              error=function(cond){
-                                  print("Used altered.outflank")
-                                  data <- altered.outflank(fst.stat, pops)
-                                  return(data)
-                              })
-
     # keep <- apply(fst.stat, 1, function(x) all(!is.na(x)))
     # keep2 <- complete.cases(fst.stat)
     # 
@@ -271,179 +205,111 @@ neutralParams <- function (rand.snps,
     # zeros <- which(rowSums(fst.stat[, 2:ncol(fst.stat)]) == 0)
     # zeros <- as.numeric(attr(zeros, "names"))
 
-    if (length(rm.pops) != 0) {
-        plot(fst.stat$He, fst.stat$FST)
-        dev.copy(png, paste(plots.path, 
-                            "/heteroVsFst_using_",
-                            rand.file,
-                            "_excluding_", 
-                            paste(rm.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
+    outflank.data <- OutFLANK.v2(data, 
+                                 NumberOfSamples = NumberOfSamples, 
+                                 qthreshold = 0.05, 
+                                 Hmin = 0.1)
+    return(outflank.data)
+}
 
-        plot(fst.stat$FST, fst.stat$FSTNoCorr)
-        abline(0,1)
-        dev.copy(png, paste(plots.path, 
-                            "/fstNoCorrVsFst_using_",
-                            rand.file,
-                            "_excluding_", 
-                            paste(rm.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                               withOutliers = TRUE, 
-                               NoCorr = TRUE, 
-                               Hmin = 0.1, 
-                               binwidth = 0.001, 
-                               Zoom = FALSE, 
-                               RightZoomFraction = 0.05, 
-                               titletext = NULL)
-        dev.copy(png, paste(plots.path, 
-                            "/outflankResults_using_",
-                            rand.file,
-                            "_excluding_", 
-                            paste(rm.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                       withOutliers = TRUE, 
-                       NoCorr = TRUE, 
-                       Hmin = 0.1, 
-                       binwidth = 0.001, 
-                       Zoom = TRUE, 
-                       RightZoomFraction = 0.15, 
-                       titletext = NULL)
-        dev.copy(png, paste(plots.path, 
-                            "/outflankResultsRightTail_using",
-                            rand.file,
-                            "_excluding_", 
-                            paste(rm.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        saveRDS(fst.stat, paste(data.path, 
-                                "/fstMatrix_using",
-                                rand.file,
-                                "_excluding_", 
-                                paste(rm.pops, collapse="_"), 
-                                ".rds", sep=""))
-        saveRDS(outflank.data, paste(data.path,
-                                     "/outflank_using",
-                                    rand.file,
-                                    "_excluding_", 
-                                     paste(rm.pops, collapse="_"), 
-                                     ".rds", sep=""))
-    } else if (length(select.pops) != 0) {
-        plot(fst.stat$He, fst.stat$FST)
-        dev.copy(png, paste(plots.path, 
-                            "/heteroVsFst_using",
-                            rand.file,
-                            "_selecting_",
-                            paste(select.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        plot(fst.stat$FST, fst.stat$FSTNoCorr)
-        abline(0,1)
-        dev.copy(png, paste(plots.path, 
-                            "/fstNoCorrVsFst_using",
-                            rand.file,
-                            "_selecting_", 
-                            paste(select.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                               withOutliers = TRUE, 
-                               NoCorr = TRUE, 
-                               Hmin = 0.1, 
-                               binwidth = 0.001, 
-                               Zoom = FALSE, 
-                               RightZoomFraction = 0.05, 
-                               titletext = NULL)
-        dev.copy(png, paste(plots.path, 
-                            "/outflankResults_using",
-                            rand.file,
-                            "_selecting_",
-                            paste(select.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                       withOutliers = TRUE, 
-                       NoCorr = TRUE, 
-                       Hmin = 0.1, 
-                       binwidth = 0.001, 
-                       Zoom = TRUE, 
-                       RightZoomFraction = 0.15, 
-                       titletext = NULL)
-        dev.copy(png, paste(plots.path, 
-                            "/outflankResultsRightTail_using",
-                            rand.file,
-                            "_selecting_", 
-                            paste(select.pops, collapse="_"), 
-                            ".png", sep=""))
-        dev.off()
-
-        saveRDS(fst.stat, paste(data.path,
-                                "/fstMatrix_using",
-                                rand.file,
-                                "_selecting_", 
-                                paste(select.pops, collapse="_"), 
-                                ".rds", sep=""))
-        saveRDS(outflank.data, paste(data.path, 
-                                     "/outflank_using",
-                                    rand.file,
-                                    "_selecting_", 
-                                     paste(select.pops, collapse="_"), 
-                                     ".rds", sep=""))
-    } else {
-        plot(fst.stat$He, fst.stat$FST)
-        dev.copy(png, paste(plots.path, "heteroVsFst_allpops.png", sep="/"))
-        dev.off()
-
-        plot(fst.stat$FST, fst.stat$FSTNoCorr)
-        abline(0,1)
-        dev.copy(png, paste(plots.path, "fstNoCorrVsFst_allpops.png", sep="/"))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                               withOutliers = TRUE, 
-                               NoCorr = TRUE, 
-                               Hmin = 0.1, 
-                               binwidth = 0.001, 
-                               Zoom = FALSE, 
-                               RightZoomFraction = 0.05, 
-                               titletext = NULL)
-        dev.copy(png, paste(plots.path, "outflankResults_allpops.png", sep="/"))
-        dev.off()
-
-        OutFLANKResultsPlotter(outflank.data, 
-                       withOutliers = TRUE, 
-                       NoCorr = TRUE, 
-                       Hmin = 0.1, 
-                       binwidth = 0.001, 
-                       Zoom = TRUE, 
-                       RightZoomFraction = 0.15, 
-                       titletext = NULL)
-        dev.copy(png, paste(plots.path, "outflankResultsRightTail_allpops.png", sep="/"))
-        dev.off()
-
-        saveRDS(fst.stat, paste(data.path,
-                                paste("fstMatrix_using",
-                                      rand.file,
-                                      "allpops.rds",
-                                      sep="_"),
-                                sep="/"))
-        saveRDS(outflank.data, paste(data.path,
-                                     paste("outflank_using",
-                                            rand.file,
-                                            "allpops.rds",
-                                            sep="_"),
-                                sep="/"))
+neutralParams <- function (rand.snps,
+                           metadata,
+                           subset.name = NULL,
+                           data.path = NULL, 
+                           plots.path = NULL) {
+    if (length(data.path) == 0 | length(plots.path) == 0) {
+        stop("Error: No file path given for data or plots")
     }
+
+    data.path <- file.path(data.path, "neutralParams")
+    if (!dir.exists(data.path)) {
+        dir.create(data.path)
+    }
+
+    plots.path <- file.path(plots.path, "neutralParams")
+    if (!dir.exists(plots.path)) {
+        dir.create(plots.path)
+    }
+
+    tmp <- strsplit(rand.snps, split="/")[[1]]
+    rand.file <- strsplit(tmp[length(tmp)], split=".rds")[[1]]    
+    
+    subset.data <- preprocess.neutralParams(rand.snps = rand.snps,
+                                            metadata = metadata, 
+                                            subset.name = subset.name)
+
+
+    pops <- length(unique(subset.data$Pop.ID))
+
+    fst.stat <- MakeDiploidFSTMat(t(subset.data$G), 
+                                  locusNames = subset.data$Pos, 
+                                  popNames = subset.data$Pop.ID)
+
+    outflank.data <- tryCatch(OutFLANK(fst.stat, 
+                                       NumberOfSamples = pops, 
+                                       qthreshold = 0.05, 
+                                       Hmin = 0.1),
+                              error = function(cond){
+                                  print("Used altered.outflank")
+                                  data <- altered.outflank(fst.stat, pops)
+                                  return(data)
+                              })
+
+    plot(fst.stat$He, fst.stat$FST)
+    dev.copy(png, paste(plots.path, 
+                        "/heteroVsFst_",
+                        gsub("\\.", "_", subset.name), 
+                        ".png", sep=""))
+    dev.off()
+
+    plot(fst.stat$FST, fst.stat$FSTNoCorr)
+    abline(0,1)
+    dev.copy(png, paste(plots.path, 
+                        "/fstNoCorrVsFst_",
+                        gsub("\\.", "_", subset.name), 
+                        ".png", sep=""))
+    dev.off()
+    
+    OutFLANKResultsPlotter(outflank.data, 
+                           withOutliers = TRUE, 
+                           NoCorr = TRUE, 
+                           Hmin = 0.1, 
+                           binwidth = 0.001, 
+                           Zoom = FALSE, 
+                           RightZoomFraction = 0.05, 
+                           titletext = NULL)
+    
+    dev.copy(png, paste(plots.path, 
+                        "/outflankResults_",
+                        gsub("\\.", "_", subset.name), 
+                        ".png", sep=""))
+    dev.off()
+
+    OutFLANKResultsPlotter(outflank.data, 
+                   withOutliers = TRUE, 
+                   NoCorr = TRUE, 
+                   Hmin = 0.1, 
+                   binwidth = 0.001, 
+                   Zoom = TRUE, 
+                   RightZoomFraction = 0.15, 
+                   titletext = NULL)
+
+    dev.copy(png, paste(plots.path, 
+                        "/outflankResultsRightTail_",
+                        gsub("\\.", "_", subset.name), 
+                        ".png", sep=""))
+    dev.off()
+
+    saveRDS(fst.stat, paste(data.path, 
+                            "/fstMatrix_",
+                            gsub("\\.", "_", subset.name), 
+                            ".rds", sep=""))
+    
+    saveRDS(outflank.data, paste(data.path,
+                                 "/outflank_",
+                                 gsub("\\.", "_", subset.name), 
+                                 ".rds", sep=""))
+    
 }
 
 ###############################################################################
@@ -473,16 +339,34 @@ altered.pOutlierFinder <- function(data, dist) {
                                        Hmin = 0.1))
 }
 
+add.breakpoints <- function (chr.index) {
+       
+    breakpoints <- read.table("breakpoints_for_plots.txt")
+
+    breakpoints <- breakpoints[which(breakpoints$Chr == chr.index), ]
+
+    for (i in 1:nrow(breakpoints)) {
+        rect(xleft=breakpoints$Low[i], 
+             ybottom=-0.25, 
+             xright=breakpoints$High[i],
+             ytop=1.15,
+             col="lightgrey",
+             border="transparent")
+        x_text <- floor((breakpoints$High[i]+breakpoints$Low[i])/2)
+        text(x=x_text, y=1.1 , paste("LG", breakpoints$LG[i], sep=" "))
+    }
+}
+
 outflank.outlierFinder <- function(data.file = NULL,
                                    null.dist = NULL,
+                                   subset.name = NULL,
                                    data.path = NULL,
                                    plots.path = NULL) {
     # Creating folder for outlier plots. If the folder does not exist, create
     # it
     null.file <- strsplit(null.dist, split=".rds")[[1]]
     plots.path <- file.path(plots.path, 
-                            "outflank.outlierFinder", 
-                            paste("neutralParams", null.file, sep="_"))
+                            "outflank.outlierFinder")
     if (!dir.exists(plots.path)) {
          dir.create(plots.path, recursive = TRUE)
     }
@@ -490,10 +374,13 @@ outflank.outlierFinder <- function(data.file = NULL,
     # it
     results.path <- file.path(data.path, 
                               "outflank.outlierFinder", 
-                              paste("neutralParams", null.file, sep="_"))
+                              "results")
     if (!dir.exists(results.path)) {
          dir.create(results.path, recursive = TRUE)
     }
+
+    # misassembled - misassembled chromosomes that need to have rectangles added.
+    misassembled <- c(5,6,9)
 
     # Load FST matrix from folder
     fst.stat <- readRDS(paste(data.path, "fstByChromosome", data.file, sep="/"))
@@ -504,7 +391,7 @@ outflank.outlierFinder <- function(data.file = NULL,
     outflank.data <- readRDS(paste(data.path, "neutralParams", null.dist, sep="/"))
     # Find outliers using the neutral parameters
     P1 <- tryCatch(pOutlierFinderChiSqNoCorr(fst.stat, 
-                                             Fstbar = outflank.data$FSTNoCorrbar, 
+                                             Fstbar = outflank.data$FSTNoCorr, 
                                              dfInferred = outflank.data$dfInferred, 
                                              qthreshold = 0.00001, 
                                              Hmin = 0.1),
@@ -525,47 +412,79 @@ outflank.outlierFinder <- function(data.file = NULL,
      # hist(P1$pvaluesRightTail)
 
     chr <- as.numeric(gsub("[^0-9]", "",  data.file))
-     
+
+    plot_x <- P1$LocusName[P1$He > 0.1]
+
+    if (nchar(length(plot_x)) == 6) {
+        tick_intervals <- round(length(plot_x) / 10000)
+    } else {
+        tick_intervals <- round(length(plot_x) / 5000)
+    }
+    
+    ticks <- plot_x[seq(1, length(plot_x), by = round(length(plot_x)/tick_intervals))]
+
     png(paste(plots.path, 
               "/manhattanPlotUsing_", 
               data.file, 
               ".png", sep=""), 
         height = 720,
         width = 2048)
-    par(mar = c(8,4,2,1))
-    plot(P1$LocusName[P1$He>0.1], 
-         P1$FST[P1$He>0.1],
+    par(mar = c(8, 4, 2, 1))
+    plot(P1$LocusName[P1$He > 0.1], 
+         P1$FST[P1$He > 0.1],
          ylab="FST",
          xlab = "",
-         ylim = c(-0.2, 1.0),
+         ylim=c(-0.2, 1.1),
+         xlim=c(min(P1$LocusName), max(P1$LocusName)),
          main = paste("Manhattan Plot: Chromsome", chr), 
-         col=rgb(0,0,0,0.2),
+         col=rgb(0, 0, 0, 0.2),
          xaxt="n")
     axis(side = 1,
          las = 2,
-         at=seq(P1$LocusName[1], 
-         P1$LocusName[length(P1$LocusName)], 
-         by=1000000))
+         at=ticks)
     mtext(text = "Position (BP)",
           side = 1,
           line = 6)
-    points(P1$LocusName[outlier], P1$FST[outlier], col="magenta", pch=20)
+    if (chr %in% misassembled) {
+        add.breakpoints(chr.index = chr)
+        points(P1$LocusName[P1$He>0.1], P1$FST[P1$He>0.1], pch=20)
+    }
+    points(P1$LocusName[outlier], P1$FST[outlier], col="red", pch=20)
     dev.off()
 
     tmp <- strsplit(data.path, split="/")[[1]][3]
 
     identifier <- strsplit(tmp, split="outlierAnalysis_")[[1]][2]
 
-    colnames(P1)[1] <- "POS"
-    P1$CHR <- chr
+    pos <- P1$Pos
+    chr <- P1$Chr
 
-    colnames(P1)[2:ncol(P1)] <- paste("OutFLANK_0.2", 
-                                      identifier, 
+    P1 <- P1[,-which(names(P1) %in% c("Chr", "Pos"))]
+
+    colnames(P1)[2:ncol(P1)] <- paste("OutFLANK_0.2_bigsnpr_0.8.2", 
                                       colnames(P1)[2:ncol(P1)],
+                                      gsub("\\.", "_", subset.name),
                                       sep="_")
-    P1$unique.id <- paste("chr_", P1$CHR, "_pos_", P1$POS, sep="")
 
-    saveRDS(P1, paste(results.path, "/outflank_outlierFinder_", data.file, ".rds", sep=""))
+    P1$Pos <- pos
+    P1$Chr <- chr
+
+    # max.chr - largest number of digits in the chromosome index
+    max.chr <- 2
+    # max.pos - largest number of digits in the position index
+    max.pos <- 9
+    P1$unique <- paste(sprintf(paste("%0", max.chr, "d", sep=""), P1$Chr), 
+                       sprintf(paste("%0", max.pos, "d", sep=""), P1$Pos), 
+                       sep="_")
+    P1 <- within(P1, rm("LocusName"))
+    
+    dir <- getwd()
+    setwd(paste(dir, results.path, sep="/"))
+    
+    saveRDS(P1, paste("outlierFinder_", data.file, ".rds", sep=""))
+
+    setwd(dir)
+    return(P1)
 }
 
 ###############################################################################
@@ -590,157 +509,177 @@ outflank.outlierFinder <- function(data.file = NULL,
 #
 ###############################################################################
 
-pcadaptAnalysis <- function (genotype.matrix,
+pcadaptAnalysis <- function (data,
                              metadata,
                              rand.snps,
+                             subset.name = NULL,
                              chr.index = NULL,
-                             rm.pops = NULL,
-                             select.pops = NULL,
                              data.path = NULL,
                              plots.path = NULL) {
     # Loading the full genotype matrix with associated bp positions, chromosomal
     # positions and population id
-    data <- readRDS(genotype.matrix)
+    data <- readRDS(data)
     # Load metadata to check the population identifiers agaisnt that the user has provided.
     metadata <- read.csv(metadata)
     # Load the subset of random independent SNPs 
     subset.data <- readRDS(rand.snps)
 
-    # Check if the user has provided pop ids that for exclusion and inclusion at the same time
-    if (length(rm.pops) != 0 && length(select.pops) != 0) {
-        stop("Error: Only one of the parameters 'rm.pops' and 'select.pops' should be provided by the user.")
-    }
-    
-    # If populations have been selected to be removed...
-    if (length(rm.pops) != 0) {
-        # Check if the correct data format is being used
-        if (typeof(rm.pops) != "character") {
-            stop("The parameter 'rm.pops' must be a character vector")
+    # Need to remove any populations that should be excluded from data
+    if (!is.null(subset.name)) {
+        if (!subset.name %in% names(metadata)){
+            stop("Error: the subset that you have provided is not specified in the metadata")
         }
-        # Check if the populations specified are in the metadata
-        if (!all(rm.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to remove is not in the data")
+        # Get Sample.ID from 'metadata' that need to be removed
+        rm.samples <- metadata$Sample.ID[which(metadata[, subset.name] == 0)]
+        #Check to see if any of the samples in the subset are in the data.
+        if (!any(data$Sample.ID %in% rm.samples)) {
+            # If there are no samples specified by the subset in the data        
+        } else {
+            # Perform operations for the full dataset
+            data$G <- data$G[, -which(data$Sample.ID %in% rm.samples)]
+            data$Pop.ID <- data$Pop.ID[-which(data$Sample.ID %in% rm.samples)]
+            data$Sample.ID <- data$Sample.ID[-which(data$Sample.ID %in% rm.samples)]
+            # And again for the thinned SNP subset.
+            subset.data$G <- subset.data$G[, -which(subset.data$Sample.ID %in% rm.samples)]
+            subset.data$Pop.ID <- subset.data$Pop.ID[-which(subset.data$Sample.ID %in% rm.samples)]
+            subset.data$Sample.ID <- subset.data$Sample.ID[-which(subset.data$Sample.ID %in% rm.samples)]
         }
-        # Removing the specified populations from the full data
-        data$genotype <- data$genotype[, -which(data$sample.id %in% rm.pops)]
-        data$sample.id <- data$sample.id[-which(data$sample.id %in% rm.pops)]
-        # Removing the specified populations from the subset
-        subset.data$G <- subset.data$G[, -which(subset.data$sample.id %in% rm.pops)]
-        subset.data$sample.id <- subset.data$sample.id[-which(subset.data$sample.id %in% rm.pops)]
-    }
-    
-    # If populations have been selected to include only...
-    if (length(select.pops) != 0) {
-        # Check if the correct data format is being used
-        if (typeof(select.pops) != "character") {
-            stop("The parameter 'select.pops' must be a character vector")
-        }
-        # Check if the populations specified are in the metadata
-        if (!all(select.pops %in% metadata$Pop.ID)) {
-            stop("Error: at least one of the populations you have selected to keep is not in the data")
-        }
-        # Removing the specified populations from the full data
-        data$genotype <- data$genotype[, which(data$sample.id %in% select.pops)]
-        data$sample.id <- data$sample.id[which(data$sample.id %in% select.pops)]
-        # Removing the specified populations from the subset
-        subset.data$G <- subset.data$G[, which(subset.data$sample.id %in% select.pops)]
-        subset.data$sample.id <- subset.data$sample.id[which(subset.data$sample.id %in% select.pops)]
     }
 
-    # Subsetting the full data by chromosome
-    if (typeof(chr.index) != "NULL") {
-        # Check to see if the chr.index specified is in the data
-        if (!chr.index %in% unique(data$chromosome)) {
-            stop("Error: The chromosome index which has been specified is not an index found in the data")
-        }
-        # Select only the SNPs associated with the specified chromosome
-        data$genotype <- data$genotype[which(data$chromosome == chr.index), ]
-        data$positions <- data$positions[which(data$chromosome == chr.index)]
-        data$chromosome <- data$chromosome[which(data$chromosome == chr.index)]
+    # After removing some individuals, you may have fixed sites if the removed
+    # individuals were providing the only unique allele type at that site.
+    # We need to find these and remove them from the matrix, Pos, and Chr
+    fixed.sites <- getFixedSites(data$G)
+    if (length(fixed.sites) != 0) {
+        data$G <- data$G[-fixed.sites, ]
+        data$Pos <- data$Pos[-fixed.sites]
+        data$Chr <- data$Chr[-fixed.sites]
+    }
+    # We will do the same for the thinned SNPs 
+    subset.fixed.sites <- getFixedSites(subset.data$G)
+    if (length(subset.fixed.sites) != 0) {
+        subset.data$G <- subset.data$G[-subset.fixed.sites, ]
+        subset.data$Pos <- subset.data$Pos[-subset.fixed.sites]
+        subset.data$Chr <- subset.data$Chr[-subset.fixed.sites]
     }
 
-    # keep <- apply(data$genotype, 1, function(x) length(unique(x[!is.na(x)])) != 1)
-    # data$genotype <- data$genotype[keep, ]
-    # data$positions <- data$positions[keep]
-    # data$chromosome <- data$chromosome[keep]
-    # 
-    # subset.keep <- apply(subset.data$G, 1, function(x) length(unique(x[!is.na(x)])) != 1)
-    # subset.data$G <- subset.data$G[subset.keep, ]
-    # subset.data$positions <- subset.data$positions[subset.keep]
-    # subset.data$chromosomes <- subset.data$chromosome[subset.keep]
-
-    # Getting the coded genotype matrix in order to run snp_autoSVD()
-    G.coded <- add_code256(big_copy(t(data$genotype),
-                                    type="raw"), 
-                           code=bigsnpr:::CODE_012)
     # Getting the coded genotype matrix of the subset in order to run snp_autoSVD()
     subset.coded <- add_code256(big_copy(t(subset.data$G),
                                          type = "raw"), 
                                 code = bigsnpr:::CODE_012)
-    
-    # appending the coded genotype matrix to the original data
-    data$G.coded <- G.coded
-
     subset.data$subset.coded <- subset.coded
     
     # Removing the variables which will not be used any further
-    rm(G.coded, subset.coded)
+    rm(subset.coded)
 
-    newpc <- snp_autoSVD(G = subset.data$subset.coded,
-                         infos.chr = subset.data$chromosomes,
-                         infos.pos = subset.data$positions,
-                         is.size.in.bp = TRUE)
+    newpc <- big_randomSVD(X = subset.data$subset.coded, 
+                           fun.scaling = snp_scaleBinom(), 
+                           k = 10, 
+                           ncores = 4)
+    # newpc <- snp_autoSVD(G = subset.data$subset.coded,
+    #                      infos.chr = subset.data$Chr,
+    #                      infos.pos = subset.data$Pos,
+    #                      size = 50000,
+    #                      is.size.in.bp = TRUE)        
 
-    # pcadapt on all loci but with the pruned PCs
-    full_stats_pcadapt_4.0.3_bigsnpr_0.8.2 <- snp_gc(snp_pcadapt(data$G.coded, U.row = newpc$u[, 1:10]))
-    # get the negative log10 values of the results.
-    pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p <- -predict(full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, log10=T)
-    # put the full results and the negative log10 values into a dataframe.
-    pcadapt.results <- list("full_stats_pcadapt_4.0.3_bigsnpr_0.8.2" = full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, 
-                            "pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p" = pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p)
-    
-    if (length(rm.pops) != 0) {
-        results.path <- file.path(data.path, 
-                                  paste("/pcadaptAnalysis_excludingpops_", 
-                                        paste(rm.pops, collapse = "_"), 
-                                        sep = ""))
-        if (!dir.exists(results.path)) {
-            dir.create(results.path)
-        }
-        saveRDS(pcadapt.results, 
-                paste(results.path, 
-                      "/pcadaptResults_chr", 
-                      chr.index, 
-                      ".rds",
-                      sep = ""))
-    } else if (length(select.pops) != 0) {
-        results.path <- file.path(data.path, 
-                                  paste("/pcadaptAnalysis_excludingpops_", 
-                                        paste(rm.pops, collapse = "_"), 
-                                        sep = ""))
-        if (!dir.exists(results.path)) {
-            dir.create(results.path)
-        }
-        saveRDS(pcadapt.results, 
-                paste(results.path, 
-                      "/pcadaptAnalysis_chr", 
-                      chr.index, 
-                      ".rds", 
-                      sep = ""))
-    } else {
-        results.path <- file.path(data.path, "/pcadaptAnalysis_allpops")
-        if (!dir.exists(results.path)) {
-            dir.create(results.path)
-        }
-        saveRDS(pcadapt.results, 
-                paste(results.path, 
-                      "/pcadaptResults_chr", 
-                      chr.index, 
-                      ".rds",
-                      sep = ""))
+    if (length(data$Pop.ID) != ncol(data$G)) {
+        stop("Number of Pop.ID in dataset and labels does not match")
     }
+    
+    if (length(data$Sample.ID) != ncol(data$G)) {
+        stop("Number of Sample.ID in dataset and labels does not match")
+    }
+    
+    combined.data <- data.frame()
+
+    for (i in chr.index) {
+       # Subsetting the full data by chromosome
+        
+        if (!i %in% unique(data$Chr)) {
+            stop("Error: The chromosome index which has been specified is not an index found in the data")
+        }
+
+        # Select only the SNPs associated with the specified chromosome
+        one.chr <- list(G = data$G[which(data$Chr == i),],
+                        Pos = data$Pos[which(data$Chr == i)],
+                        Chr = data$Chr[which(data$Chr == i)],
+                        Pop.ID = data$Pop.ID,
+                        Sample.ID = data$Sample.ID)
+        
+        # keep <- apply(allData$G, 1, function(x) length(unique(x[!is.na(x)])) != 1)
+        # data$genotype <- data$genotype[keep, ]
+        # data$Positions <- data$Positions[keep]
+        # data$chromosome <- data$chromosome[keep]
+        # 
+        # subset.keep <- apply(subset.data$G, 1, function(x) length(unique(x[!is.na(x)])) != 1)
+        # subset.data$G <- subset.data$G[subset.keep, ]
+        # subset.data$Positions <- subset.data$Positions[subset.keep]
+        # subset.data$chromosomes <- subset.data$chromosome[subset.keep]
+
+        # Getting the coded genotype matrix in order to run snp_autoSVD()
+        G.coded <- add_code256(big_copy(t(one.chr$G),
+                                        type="raw"), 
+                               code=bigsnpr:::CODE_012)
+
+        # appending the coded genotype matrix to the original data
+        one.chr$G.coded <- G.coded
+
+        max.pos <- 9
+        # Max char for the chromosome will have to be hardcoded here.
+        # This is due to the fact that we are 
+        max.chr <- 2 
+        unique <- paste(sprintf(paste("%0", max.chr, "d", sep=""), one.chr$Chr), 
+                        sprintf(paste("%0", max.pos, "d", sep=""), one.chr$Pos), 
+                        sep="_")
+
+        # pcadapt on all loci but with the pruned PCs
+        pcadapt_4.0.3_bigsnpr_0.8.2_Md <- snp_pcadapt(one.chr$G.coded, U.row = newpc$u[, 1:5])
+        full_stats_pcadapt_4.0.3_bigsnpr_0.8.2 <- snp_gc(pcadapt_4.0.3_bigsnpr_0.8.2_Md)
+        # get the negative log10 values of the results.
+        pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p <- -predict(full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, log10=T)
+        # put the full results and the negative log10 values into a dataframe.
+
+        # I could put the entire dataset into the file but not needed at the time of writing.
+        # "full_stats_pcadapt_4.0.3_bigsnpr_0.8.2" = full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, 
+
+        pcadapt.results <- data.frame("Pos" = one.chr$Pos,
+                                      "Chr" = one.chr$Chr,
+                                      "unique" = unique,
+                                      "pcadapt_4.0.3_bigsnpr_0.8.2_Md" = pcadapt_4.0.3_bigsnpr_0.8.2_Md$score,
+                                      "pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p" = pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p)
+
+        names(pcadapt.results)[4] <- paste("pcadapt_4.0.3_bigsnpr_0.8.2_Md", 
+                                            gsub("\\.", "_", subset.name), 
+                                            sep="_")
+        
+        names(pcadapt.results)[5] <- paste("pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p", 
+                                            gsub("\\.", "_", subset.name), 
+                                            sep="_")
+
+        results.path <- file.path(data.path, 
+                                  paste("/pcadaptAnalysis_", 
+                                        gsub("\\.", "_", subset.name), 
+                                        sep=""))
+        if (!dir.exists(results.path)) {
+            dir.create(results.path)
+        }
+        
+        saveRDS(as.data.frame(pcadapt.results), 
+                paste(results.path, 
+                      "/pcadaptResults_chr", 
+                      i, 
+                      ".rds",
+                      sep = ""))
+        
+        combined.data <- rbind(combined.data, pcadapt.results)
+    }
+    combined.data$unique <- levels(droplevels(combined.data$unique))
+    return(combined.data)
 }
 
+merge.results <- function (outflank.data, pcadapt.data) {
+    joined.data <- full_join(out.data, pc.data, by = c("unique", "Pos", "Chr"))
+}
 # Below is a wrapper function that will allow you to run all of the analyses
 # that you would like while just pressing 'enter'. If you would like to run the
 # analyses for all populations, leave the rm.pops and select.pops parameters as
@@ -749,159 +688,97 @@ pcadaptAnalysis <- function (genotype.matrix,
 # those parameters, respectively. However, do not put NULL into your
 # concatenated parameters (i.e rm.pops = list(c("LM"), NULL, c("CL")) 
 
-wrapper <- function (data.file = "data/large_data/genotypeMatrix.rds",
+wrapper <- function (data.file = "data/large_data/genotypeMatrix_unrelated.rds",
                      metadata = "data/modified_samplemetadata.csv",
-                     rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData1e+05Window.rds",
-                     chr.index = seq(1, 10), 
-                     rm.pops = NULL,
-                     select.pops = NULL) {
+                     rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
+                     subset.name = subset.name,
+                     chr.index = seq(1, 10)) {
     # Create folder structure for the analyses and their outputs depending upon
     # whether they remove or select certain populations
     
-        if (length(select.pops) != 0) {
-            data.path <- file.path("large_outputs", 
-                                     "outlierAnalysis", 
-                                     paste("outlierAnalysis_selectingpops_", 
-                                            paste(select.pops, collapse="_"), sep=""),
-                                     "data")
-            plots.path <- file.path("large_outputs", 
-                                     "outlierAnalysis", 
-                                     paste("outlierAnalysis_selectingpops_", 
-                                            paste(select.pops, collapse="_"), sep=""),
-                                     "plots")                                 
-        } else if (length(rm.pops) != 0) {
-            data.path <- file.path("large_outputs", 
-                                     "outlierAnalysis", 
-                                     paste("outlierAnalysis_excludingpops_", 
-                                            paste(rm.pops, collapse="_"), sep=""),
-                                     "data")
-            plots.path <- file.path("large_outputs", 
-                                     "outlierAnalysis", 
-                                     paste("outlierAnalysis_excludingpops_", 
-                                            paste(rm.pops, collapse="_"), sep=""),
-                                     "plots")
-        } else {
-            data.path <- file.path("large_outputs", 
-                                   "outlierAnalysis", 
-                                   "outlierAnalysis_allpops",
-                                   "data")
-            plots.path <- file.path("large_outputs", 
-                                    "outlierAnalysis", 
-                                    "outlierAnalysis_allpops",
-                                    "plots")
-        }
-        if (!dir.exists(data.path)) {
-            dir.create(data.path, recursive = TRUE)
-        }
-        if (!dir.exists(plots.path)) {
-            dir.create(plots.path, recursive = TRUE)
-        }
-
-        fstByChromosome(data.file = data.file, 
-                        chr.index = chr.index,  
-                        rm.pops = rm.pops, 
-                        select.pops = select.pops,
-                        data.path = data.path, 
-                        plots.path = plots.path)
-
-        neutralParams(rand.snps = rand.snps, 
-                      rm.pops = rm.pops, 
-                      select.pops = select.pops,
-                      data.path = data.path, 
-                      plots.path = plots.path)
+    data.path <- file.path("data",
+                            "large_outputs", 
+                            "outlierAnalysis", 
+                            paste("outlierAnalysis_", gsub("\\.", "_", subset.name), sep=""),
+                            "data")
+    plots.path <- file.path("data",
+                            "large_outputs", 
+                             "outlierAnalysis", 
+                             paste("outlierAnalysis_", gsub("\\.", "_", subset.name), sep=""),
+                             "plots")
     
-        # Check to see if the folder which has been provided has been created.
-        data.folder <- file.path(data.path, "fstByChromosome")
-        if (!dir.exists(data.folder)) {
-             stop("The folder holding the data files does not exist")
-        # Check to see if there are any files in the folder provided. If there are
-        # none, return with an error     
-        } 
+    if (!dir.exists(data.path)) {
+        dir.create(data.path, recursive = TRUE)
+    }
+    if (!dir.exists(plots.path)) {
+        dir.create(plots.path, recursive = TRUE)
+    }
+
+    fstByChromosome(data.file = data.file,
+                    metadata = metadata, 
+                    chr.index = chr.index,  
+                    subset.name = subset.name,
+                    data.path = data.path, 
+                    plots.path = plots.path)
+    
+    neutralParams(rand.snps = rand.snps,
+                  metadata = metadata, 
+                  subset.name = subset.name,
+                  data.path = data.path, 
+                  plots.path = plots.path)
+    
+    # Check to see if the folder which has been provided has been created.
+    data.folder <- file.path(data.path, "fstByChromosome")
+    if (!dir.exists(data.folder)) {
+         stop("The folder holding the data files does not exist")
+    # Check to see if there are any files in the folder provided. If there are
+    # none, return with an error     
+    } 
         
-        if (length(list.files(path = data.folder)) == 0) {
-             stop("There are no data files in the folder that you have provided")
-        }
+    if (length(list.files(path = data.folder)) == 0) {
+         stop("There are no data files in the folder that you have provided")
+    }
 
-        # Run the function above across the files which the user has provided.
-        files <- list.files(path = data.folder)
+    # Run the function above across the files which the user has provided.
+    files <- list.files(path = data.folder)
 
-        rand.file <- strsplit(rand.snps, split=".rds")[[1]]    
-        null.folder <- file.path(data.path, "neutralParams")
-        null.dist <- list.files(null.folder)[which(grepl("outflank", list.files(null.folder)))]
-        if (length(null.dist) > 1) {
-            null.dist <- null.dist[which(grepl(rand.file, null.dist))]
-        }
+    rand.file <- strsplit(rand.snps, split=".rds")[[1]]    
+    null.folder <- file.path(data.path, "neutralParams")
+    null.dist <- list.files(null.folder)[which(grepl("outflank", list.files(null.folder)))]
+    
+    if (length(null.dist) > 1) {
+        null.dist <- null.dist[which(grepl(rand.file, null.dist))]
+    }
 
-        for (i in files) {
-            outflank.outlierFinder(data.file = i, 
-                                   null.dist = null.dist,
-                                   data.path = data.path,
-                                   plots.path = plots.path)
-        }
+    outflank.data <- data.frame()
+    for (i in files) {
+        tmp.outflank <- outflank.outlierFinder(data.file = i, 
+                                               null.dist = null.dist,
+                                               subset.name = subset.name,
+                                               data.path = data.path,
+                                               plots.path = plots.path)
+        outflank.data <- rbind(outflank.data, tmp.outflank)
+    }
 
-#    if (length(rm.pops) != 0 | length(select.pops) != 0) {
-#        for (i in chr.index) {
-#                pcadaptAnalysis(chr.index = i, rm.pops = j)
-#        }
-#
-#        for (i in chr.index) {
-#            for (j in select.pops) {
-#                pcadaptAnalysis(chr.index = i, rm.pops = j)
-#            }
-#        }
-#    }
-#    for (i in chr.index) {
-#        pcadaptAnalysis(chr.index = i)
-#    }    
+    pcadapt.data <- pcadaptAnalysis(data = data.file, 
+                                    chr.index = chr.index, 
+                                    rand.snps = rand.snps,
+                                    metadata = metadata, 
+                                    subset.name = subset.name,
+                                    data.path = data.path, 
+                                    plots.path = plots.path)
+
+    merged.data <- full_join(outflank.data, 
+                             pcadapt.data, 
+                             by = c("Pos", "Chr", "unique"))
+
+    write.table(merged.data, paste(data.path, "/final_merged_data.txt", sep = ""))
 }
 
-wrapper()
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds")
+ wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
+         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+         subset.name = "exclude.LM")
 
-wrapper(rm.pops="LM")
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        rm.pops="LM")
-
-wrapper(select.pops = c("NEH", "UMFS"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("NEH", "UMFS"))
-
-wrapper(select.pops = c("CL", "SL"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("CL", "SL"))
-
-wrapper(select.pops = c("CLP", "HC_VA"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("CLP", "HC_VA"))
-
-wrapper(select.pops = c("HP", "CS"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("HP", "CS"))
-
-wrapper(select.pops = c("HG", "NEH"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("HG", "NEH"))
-
-wrapper(select.pops = c("NG", "NEH"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("NG", "NEH"))
-
-wrapper(select.pops = c("CS", "NEH"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("CS", "NEH"))
-
-wrapper(select.pops = c("HC", "DEBY"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("HC", "DEBY"))
-
-wrapper(select.pops = c("HC_VA", "DEBY"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("HC_VA", "DEBY"))
-
-wrapper(select.pops = c("CL", "LOLA"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("CL", "LOLA"))
-
-wrapper(select.pops = c("CLP", "LOLA"))
-wrapper(rand.snps = "50KRandomSNPs1e+05Window.rds", 
-        select.pops = c("CLP", "LOLA"))
+# wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
+#         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
+#         subset.name = "unrelated")

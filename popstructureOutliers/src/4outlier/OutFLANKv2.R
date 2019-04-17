@@ -724,7 +724,7 @@ pOutlierFinderChiSqNoCorr.v2=function(DataList, Fstbar, dfInferred, qthreshold=0
   pList = pTwoSidedFromChiSq(DataListGood$FSTNoCorr*(dfInferred)/Fstbar,dfInferred)
   pListRightTail = 1-pchisq(DataListGood$FSTNoCorr*(dfInferred)/Fstbar,dfInferred)
   # Edited for the outlierAnalysis. pi0 changed from NULL to 1.  
-  qtemp=qvalue(pListRightTail,fdr.level=qthreshold,pi0 = 1)
+  qtemp=qvalue(pListRightTail, fdr.level=qthreshold, pi0 = 1)
   #Note:  Using the bootstrap method here seems OK, but if this causes problems remove the pi0.method="bootstrap" in the previous line to revert to the default.
   
   DataListGood$pvalues = pList

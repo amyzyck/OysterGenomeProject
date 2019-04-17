@@ -148,21 +148,26 @@ decay.plots <- function (path = NULL, file.suffix = NULL, plot.title = NULL) {
 }
 
 # Get plot for all populations
- decay.plots(path="data/large_data/ldAnalysisData/allpops/",
-             file.suffix = "allpops",
-             plot.title = "All Populations")
-
-# # Get plot for all populations when excluding LM
-decay.plots(path="data/large_data/ldAnalysisData/excluding_LM/",
-            file.suffix = "excluding_LM",
-            plot.title = "Excluding LM")
-# 
-# # Get plot for wild Atlantic populations
-decay.plots(path="data/large_data/ldAnalysisData/excluding_selection/",
-            file.suffix = "excluding_selection",
-            plot.title = "Atlantic Wild Populations")
+#decay.plots(path="data/large_data/ldAnalysisData/allpops/",
+#            file.suffix = "allpops",
+#            plot.title = "All Populations")
+#
+## # Get plot for all populations when excluding LM
+#decay.plots(path="data/large_data/ldAnalysisData/excluding_LM/",
+#            file.suffix = "excluding_LM",
+#            plot.title = "Excluding LM")
+## 
+## # Get plot for wild Atlantic populations
+#decay.plots(path="data/large_data/ldAnalysisData/excluding_selection/",
+#            file.suffix = "excluding_selection",
+#            plot.title = "Atlantic Wild Populations")
+#
+## Get plot for selection Atlantic populations
+# decay.plots(path="data/large_data/ldAnalysisData/excluding_wild/",
+#             file.suffix = "excluding_wild",
+#             plot.title = "Atlantic Selection Populations")
 
 # Get plot for selection Atlantic populations
- decay.plots(path="data/large_data/ldAnalysisData/excluding_wild/",
-             file.suffix = "excluding_wild",
-             plot.title = "Atlantic Selection Populations")
+ decay.plots(path="data/large_data/ldAnalysisData/unrelated/",
+             file.suffix = "unrelated",
+             plot.title = "Unrelated Individuals")
