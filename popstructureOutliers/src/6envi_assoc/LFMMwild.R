@@ -14,7 +14,8 @@ library(lfmm)
 #########################################################################
 # setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers")
 ### Read in RDS and metadata
-#allData        <- readRDS("data/genotypeMatrix_excluding_LM.rds")
+# allData        <- readRDS("data/large_data/genotypeMatrix.rds")
+print("Reading and processing metadata")
 metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
 
@@ -29,24 +30,26 @@ common_cols <- common_cols[! common_cols %in% c("NOTES", "Ecotype", "Sex")]  # r
 comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
 
 # ### Select only Wild populations to rewrite matrix
-wild        <- allData
-wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
-wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
+#wild        <- allData
+#wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
+#wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
 # 
 # # The genotype matrix has some fixed values, remove them before proceeding
-# variances <- apply(wild$G, 1, var)
-# not_fixed <- variances > 0
-# wild$G <- wild$G[not_fixed, ]
-# #  update the positions and chr
-# wild$Pos <- wild$Pos[not_fixed]
-# wild$Chr <- wild$Chr[not_fixed]
+#variances <- apply(wild$G, 1, var)
+#not_fixed <- variances > 0
+#wild$G <- wild$G[not_fixed, ]
+#  update the positions and chr
+#wild$Pos <- wild$Pos[not_fixed]
+#wild$Chr <- wild$Chr[not_fixed]
 # 
 # ### Save the new genotype matrix just in case
-# saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
-
-#PCA <- prcomp(wild$G)
-#plot(PCA, type = "l", main = "PCA Scree Plot")
+#saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
+print("plotting PCA scree plot")
 wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
+pdf("PCA_scree_plot.pdf")
+PCA <- prcomp(wild$G)
+plot(PCA, type = "l", main = "PCA Scree Plot")
+dev.off()
 
 
 calcEnviLFMMandSpRho <- function(envi_var, pop_object){
@@ -65,16 +68,14 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   print("Running lfmm test")
   lfmm.test.ridge <- lfmm::lfmm_test(Y = scaled.genotype, X = scaled.envi, lfmm = lfmm.ridge, calibrate = "gif")
   
-  # save the ridge objects, now it makes sense to move from comp5 to my local machine to inspect the results in a GUI
+  # save the ridge objects
   print("Saving lfmm objects")
   saveRDS(lfmm.ridge, paste("data", "lfmm_ridge_results_mean_annual_temp.rds", sep = "/"))
   saveRDS(lfmm.test.ridge, paste("data", "lfmm_ridge_test_results_mean_annual_temp.rds", sep = "/"))
-  
+
   # read in ridge objects
-  #lfmm.ridge      <- readRDS("data/lfmm_ridge_results_mean_annual_temp_chr1.rds")
-  #lfmm.test.ridge <- readRDS("data/lfmm_ridge_test_results_mean_annual_temp_chr1.rds")
-  # read in genotype matrix/positions/chr
-  #wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
+  #lfmm.ridge      <- readRDS("data/lfmm_ridge_results_mean_annual_temp.rds")
+  #lfmm.test.ridge <- readRDS("data/lfmm_ridge_test_results_mean_annual_temp.rds")
   
   # get p values
   p.values.ridge <- lfmm.test.ridge$calibrated.pvalue
@@ -85,40 +86,47 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   #qval <- qvalue::qvalue(p.values.ridge)
   #plot(qval)
   print("Plotting LF 1 and 2")
-  png(paste("LFMM_ridge_0.0", envi_var, "LF_plot.png"))
+  pdf(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.pdf", sep = "_"))
   plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
   text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = wild$Pop.ID, cex = 0.6)
   dev.off()
-  
+  rm(lfmm.test.ridge)
+  rm(lfmm.ridge)
+ 
   LFMM_ridge_0.0_log10p <- -log10(as.numeric(p.values.ridge))
-  #plot(wild$Pos[which(wild$Chr == 1)], LFMM_ridge_0.0_Chr1_log10p, xlab = "Pos", main = "Chr1 Mean Annual Temp Association Test")
-  #abline(h=7.37546017023772, col="red")
-  
-  #weirdVals <- wild$Pos[which(LFMM_ridge_0.0_ALL_log10p > 7.375 & LFMM_ridge_0.0_ALL_log10p < 7.376)]
+  rm(p.values.ridge)
+  # LFMM plot
+  pdf(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.pdf", sep = "_"))
+  plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = "LFMM Ridge P-values")
+  dev.off()
   
   
   # spearman's correlation
   print("Calculating spearman's correlation")
   absSpCor <- abs(cor(scaled.envi, scaled.genotype, method = "spearman"))
-  #plot(wild$Pos[which(wild$Chr ==1)], abs(spCor), xlab = "Pos", 
-  #     main = "Spearman's Correlation")
+  pdf(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.pdf", sep = "_"))
+  plot(absSpCor, LFMM_ridge_0.0_log10p, main = "Spearmann's Rho vs LFMM Ridge")
+  abline(lm(LFMM_ridge_0.0_log10p ~ as.vector(absSpCor)), col = "red")
+  dev.off()
   
   unique_ID <- sprintf("%02d_%09d", pop_object$Chr, pop_object$Pos)
   print("Creating data frame")
-  
-  out_table <- data.frame(pop_object$Pos, pop_object$Chr, 
-                          unique_ID, LFMM_ridge_0.0_log10p, absSpCor)
+
+  print("making matrix")
+  stat_matrix <- matrix(c(pop_object$Pos, pop_object$Chr, unique_ID, 
+		     LFMM_ridge_0.0_log10p, absSpCor), ncol = 5, nrow = length(unique_ID))
+  print("matrix to data frame")
+  out_table <- as.data.frame(stat_matrix)
+
+  print(str(out_table))
   print("Naming data frame") 
-  names(out_table) <- c("pos", "chr", "unique", paste("LFMM_ridge_0.0_log10p", envi_var, sep = "_"),
-                        paste("Spearmanns_Rho_ABS", envi_var, sep = "_"))
+  colnames(out_table) <- c("pos", "chr", "unique", paste("LFMM_ridge_0.0_log10p", envi_var, sep = "_"),
+                         paste("Spearmanns_Rho_ABS", envi_var, sep = "_"))
   print("saving dataframe")
-  write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "/assoc_results.txt"), 
-              quote = FALSE, sep = "\t")
+  write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
+               quote = FALSE, sep = "\t", row.names = FALSE)
 }
 
 calcEnviLFMMandSpRho(envi_var = "Mean_Annual_Temperature_Celsius", pop_object = wild)
 
-### compare ridge and sp rho
-#plot(abs(spCor), LFMM_ridge_0.0_Chr1_log10p, col = "gray")
-#abline(lm(LFMM_ridge_0.0_Chr1_log10p ~ as.vector(abs(spCor))), col = "red")
