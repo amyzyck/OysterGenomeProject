@@ -46,7 +46,7 @@ comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
 #saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
 print("plotting PCA scree plot")
 wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
-pdf("PCA_scree_plot.pdf")
+png("PCA_scree_plot.png")
 PCA <- prcomp(wild$G)
 plot(PCA, type = "l", main = "PCA Scree Plot")
 dev.off()
@@ -86,7 +86,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   #qval <- qvalue::qvalue(p.values.ridge)
   #plot(qval)
   print("Plotting LF 1 and 2")
-  pdf(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.pdf", sep = "_"))
+  png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.png", sep = "_"))
   plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
   text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = wild$Pop.ID, cex = 0.6)
@@ -97,7 +97,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   LFMM_ridge_0.0_log10p <- -log10(as.numeric(p.values.ridge))
   rm(p.values.ridge)
   # LFMM plot
-  pdf(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.pdf", sep = "_"))
+  png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.png", sep = "_"))
   plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = "LFMM Ridge P-values")
   dev.off()
   
@@ -105,7 +105,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   # spearman's correlation
   print("Calculating spearman's correlation")
   absSpCor <- abs(cor(scaled.envi, scaled.genotype, method = "spearman"))
-  pdf(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.pdf", sep = "_"))
+  png(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.png", sep = "_"))
   plot(absSpCor, LFMM_ridge_0.0_log10p, main = "Spearmann's Rho vs LFMM Ridge")
   abline(lm(LFMM_ridge_0.0_log10p ~ as.vector(absSpCor)), col = "red")
   dev.off()
