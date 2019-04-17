@@ -775,10 +775,18 @@ wrapper <- function (data.file = "data/large_data/genotypeMatrix_unrelated.rds",
     write.table(merged.data, paste(data.path, "/final_merged_data.txt", sep = ""))
 }
 
- wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
-         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
-         subset.name = "exclude.LM")
+# wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
+#         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+#         subset.name = "exclude.LM")
 
 # wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
 #         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
 #         subset.name = "unrelated")
+
+# wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
+#          rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+#          subset.name = "atlantic.wild.subset")
+
+wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
+         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+         subset.name = "atlantic.selection.subset")
