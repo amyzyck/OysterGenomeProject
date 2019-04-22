@@ -11,7 +11,6 @@ The data within each file should be described by the file name in this order sep
    * Subsets of full set of thinned SNPs:
      * `20KRandomSNPs`
      * `50KRandomSNPs`
-     * `100KRandomSNPs`
 2. Size of window used for thinning procedure
    * We used a window size of 5000 bp and 50,000 bp. Those values should appear in the file names.
 3. Subset of samples used.
