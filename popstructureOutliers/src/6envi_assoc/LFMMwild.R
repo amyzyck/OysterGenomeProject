@@ -89,7 +89,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.png", sep = "_"))
   plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
-  text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = wild$Pop.ID, cex = 0.6)
+  text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = pop_object$Pop.ID, cex = 0.6)
   dev.off()
   rm(lfmm.test.ridge)
   rm(lfmm.ridge)
