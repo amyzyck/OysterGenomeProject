@@ -46,7 +46,7 @@ comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
 #saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
 print("plotting PCA scree plot")
 wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
-png("PCA_scree_plot.png")
+png("figures/6envi_assoc/PCA_scree_plot.png")
 PCA <- prcomp(wild$G)
 plot(PCA, type = "l", main = "PCA Scree Plot")
 dev.off()
@@ -121,9 +121,13 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
 
   print(str(out_table))
   print("Naming data frame") 
-  colnames(out_table) <- c("pos", "chr", "unique", paste("LFMM_ridge_0.0_log10p", envi_var, sep = "_"),
-                         paste("Spearmanns_Rho_ABS", envi_var, sep = "_"))
+  colnames(out_table) <- c("Pos", "Chr", "Unique", 
+			   paste("LFMM_ridge_0.0_log10p", envi_var, "wild_for_assoc",sep = "_"),
+                           paste("Spearmanns_Rho_ABS", envi_var, "wild_for_assoc", sep = "_"))
   print("saving dataframe")
+  if (!dir.exists("data/envi_assoc_results")){
+      dir.create("data/envi_assoc_results")
+  }
   write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
                quote = FALSE, sep = "\t", row.names = FALSE)
 }
