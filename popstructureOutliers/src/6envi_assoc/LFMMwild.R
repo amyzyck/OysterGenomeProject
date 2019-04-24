@@ -14,7 +14,7 @@ library(lfmm)
 #########################################################################
 # setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers")
 ### Read in RDS and metadata
-# allData        <- readRDS("data/large_data/genotypeMatrix.rds")
+ allData        <- readRDS("data/large_data/genotypeMatrix.rds")
 print("Reading and processing metadata")
 metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
@@ -23,27 +23,32 @@ envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv
 envi_metadata$Wild.Sel[which(envi_metadata$Wild.Sel == "inbred")] <- "I"
 
 # combine the two metadata csv files
-# NG_H0H4 is dropped because it is only in modified_samplemetadata.csv
-# LM_2 is dropped because it is only in full_sample_metadata_4_20_19_ER.csv
 common_cols <- intersect(names(envi_metadata), names(metadata))
-common_cols <- common_cols[! common_cols %in% c("NOTES", "Ecotype", "Sex")]  # remove columns that don't have same info b/w files
-comb_metadata <- merge(metadata, envi_metadata, by = common_cols)
+# common_cols <- common_cols[! common_cols %in% c("NOTES", "Ecotype", "Sex")]  # remove columns that don't have same info b/w files
+comb_metadata <-  merge(metadata, 
+                        envi_metadata[which(envi_metadata$Sample.ID %in% metadata$Sample.ID), 
+                        which(! names(envi_metadata) %in% common_cols[-1])],   # index 1 is Sample.ID, keep that to merge 
+                        by = "Sample.ID", all = T)
 
 # ### Select only Wild populations to rewrite matrix
-#wild        <- allData
-#wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
-#wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
+print("Selecting wild_for_assoc populations")
+wild        <- allData
+wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
+wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
 # 
 # # The genotype matrix has some fixed values, remove them before proceeding
-#variances <- apply(wild$G, 1, var)
-#not_fixed <- variances > 0
-#wild$G <- wild$G[not_fixed, ]
+print("Removing fixed sites")
+variances <- apply(wild$G, 1, var)
+not_fixed <- variances > 0
+wild$G <- wild$G[not_fixed, ]
 #  update the positions and chr
-#wild$Pos <- wild$Pos[not_fixed]
-#wild$Chr <- wild$Chr[not_fixed]
+wild$Pos <- wild$Pos[not_fixed]
+wild$Chr <- wild$Chr[not_fixed]
 # 
-# ### Save the new genotype matrix just in case
-#saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
+# ### Save the new genotype matrix for quicker future analysis
+print("Saving 'genotypeMatrix_selecting_Wild.rds'")
+saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
+
 print("plotting PCA scree plot")
 wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
 png("figures/6envi_assoc/PCA_scree_plot.png")
@@ -89,7 +94,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.png", sep = "_"))
   plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
        main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
-  text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 10, labels = pop_object$Pop.ID, cex = 0.6)
+  text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 20, labels = pop_object$Pop.ID, cex = 0.6)
   dev.off()
   rm(lfmm.test.ridge)
   rm(lfmm.ridge)
