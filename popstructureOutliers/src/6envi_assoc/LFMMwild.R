@@ -12,57 +12,102 @@ library(lfmm)
 # populationStructureScript.R and subsets it to only include wild type
 # populations
 #########################################################################
-# setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers")
-### Read in RDS and metadata
- allData        <- readRDS("data/large_data/genotypeMatrix.rds")
-print("Reading and processing metadata")
-metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
-envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
-
-# make the Wild.Sel column match between the two metadata files
-envi_metadata$Wild.Sel[which(envi_metadata$Wild.Sel == "inbred")] <- "I"
-
-# combine the two metadata csv files
-common_cols <- intersect(names(envi_metadata), names(metadata))
-# common_cols <- common_cols[! common_cols %in% c("NOTES", "Ecotype", "Sex")]  # remove columns that don't have same info b/w files
-comb_metadata <-  merge(metadata, 
-                        envi_metadata[which(envi_metadata$Sample.ID %in% metadata$Sample.ID), 
-                        which(! names(envi_metadata) %in% common_cols[-1])],   # index 1 is Sample.ID, keep that to merge 
-                        by = "Sample.ID", all = T)
-
-# ### Select only Wild populations to rewrite matrix
-print("Selecting wild_for_assoc populations")
-wild        <- allData
-wild$G      <- allData$G[, which(comb_metadata$wild_for_assoc == 1)]
-wild$Pop.ID <- metadata$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
-# 
-# # The genotype matrix has some fixed values, remove them before proceeding
-print("Removing fixed sites")
-variances <- apply(wild$G, 1, var)
-not_fixed <- variances > 0
-wild$G <- wild$G[not_fixed, ]
-#  update the positions and chr
-wild$Pos <- wild$Pos[not_fixed]
-wild$Chr <- wild$Chr[not_fixed]
-# 
-# ### Save the new genotype matrix for quicker future analysis
-print("Saving 'genotypeMatrix_selecting_Wild.rds'")
-saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
-
-print("plotting PCA scree plot")
-wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
-png("figures/6envi_assoc/PCA_scree_plot.png")
-PCA <- prcomp(wild$G)
-plot(PCA, type = "l", main = "PCA Scree Plot")
-dev.off()
 
 
-calcEnviLFMMandSpRho <- function(envi_var, pop_object){
+#////////////////////////////////////////////////////////////////////////
+# combineMetadata is a function to combine the metedata from 
+# modified_samplemetadata.csv with environmental data from
+# full_sample_metadata_4_20_19_ER.csv
+#-----------------------------------------------------------------------
+# inputs: 
+#  - metadata      -- modfied_samplemetadata.csv
+#  - envi_metadata -- full_sample_metadata_4_20_19_ER.csv
+# outputs:
+#  - a dataframe that combines the data from the 2 files
+#
+#////////////////////////////////////////////////////////////////////////
+
+combineMetadata <- function(metadata, envi_metadata){
+  # make the Wild.Sel column match between the two metadata files
+  envi_metadata$Wild.Sel[which(envi_metadata$Wild.Sel == "inbred")] <- "I"
+
+  # combine the two metadata csv files
+  common_cols <- intersect(names(envi_metadata), names(metadata))
+  comb_metadata <-  merge(metadata, 
+                          envi_metadata[which(envi_metadata$Sample.ID %in% metadata$Sample.ID), 
+                          which(! names(envi_metadata) %in% common_cols[-1])],   # index 1 is Sample.ID, keep that to merge 
+                          by = "Sample.ID", all = T)
+  return(comb_metadata)
+}
+#///////////////////////////////////////////////////////////////////////////
+#
+# subsetGenoData uses the combined metadata dataframe to subset
+# the genotype data to only include the wild_for_assoc populations
+#
+#---------------------------------------------------------------------
+# inputs: 
+#   - geno_data     -- a list object that contains genotype, population IDs,
+#                      chromosome numbers, and positions for each SNP
+#   - comb_metadata -- a dataframe created by combineMetadata that 
+#                      includes a column named "wild_for_assoc" where
+#                      a value of 1 indicates that a sample should be 
+#                      included and 0 indicates it should be ignored
+# outputs:
+#   - a new list object that only includes info for the selected samples
+#
+#///////////////////////////////////////////////////////////////////////////
+
+subsetGenoData <- function(geno_data, comb_metadata){
+  # ### Select only Wild populations to rewrite matrix
+  print("Selecting wild_for_assoc populations")
+  wild        <- geno_data
+  wild$G      <- geno_data$G[, which(comb_metadata$wild_for_assoc == 1)]
+  wild$Pop.ID <- geno_data$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
+   
+  # The genotype matrix has some fixed values, remove them before proceeding
+  print("Removing fixed sites")
+  variances <- apply(wild$G, 1, var)
+  not_fixed <- variances > 0
+  wild$G <- wild$G[not_fixed, ]
+  #  update the positions and chr
+  wild$Pos <- wild$Pos[not_fixed]
+  wild$Chr <- wild$Chr[not_fixed]
+ 
+  ### Save the new genotype matrix for quicker future analysis
+  print("Saving 'data/genotypeMatrix_selecting_Wild.rds'")
+  saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
+  return(wild)
+}
+
+#//////////////////////////////////////////////////////////////////////////////////
+#
+# calcEnviLFMMandSpRho does the bulk of the analysis. It calculates LFMM 
+# p-values and Spearmann's Rho for the association between genotype and the 
+# given environmental variable. Optionally, it produces plots to visualize 
+# the results. It always saves the results in a dataframe with descriptive
+# column names. 
+# ---------------------------------------------------------------------------------
+# Inputs: 
+#        - envi_var   -- the name of the environmental variable to consider. Must
+#                        match the name of one of the columns in metadata
+#        - pop_object -- a list object of the type created by subsetGenoData,
+#                        contains genotypes and pop IDs
+#        - metadata   -- the metadata file that contains environmental variables
+#                        and pop IDs
+#        - plots      -- a boolean: TRUE means create plots, FALSE means only create
+#                        the dataframe        
+# Outputs: 
+#       - a dataframe with columns for spearmann's rho values,  LFMM values, Chr,
+#         Pos, and "Unique" (an identifier created from Chr and Pos)
+#       - optional : plots that have been saved in figures/6envi_assoc
+#///////////////////////////////////////////////////////////////////////////////////
+
+calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
   # scale genotype matrix
   scaled.genotype <- scale(as.matrix(t(pop_object$G)))
   # create a temperature matrix
-  envi        <- comb_metadata[envi_var]
-  envi        <- envi[which(comb_metadata$wild_for_assoc == 1), ]
+  envi        <- metadata[envi_var]
+  envi        <- envi[which(metadata$wild_for_assoc == 1), ]
   envi_matrix <- matrix(data = envi, nrow = length(envi), ncol = 1)
   scaled.envi <- scale(envi_matrix)
   
@@ -73,69 +118,76 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object){
   print("Running lfmm test")
   lfmm.test.ridge <- lfmm::lfmm_test(Y = scaled.genotype, X = scaled.envi, lfmm = lfmm.ridge, calibrate = "gif")
   
-  # save the ridge objects
-  print("Saving lfmm objects")
-  saveRDS(lfmm.ridge, paste("data", "lfmm_ridge_results_mean_annual_temp.rds", sep = "/"))
-  saveRDS(lfmm.test.ridge, paste("data", "lfmm_ridge_test_results_mean_annual_temp.rds", sep = "/"))
-
-  # read in ridge objects
-  #lfmm.ridge      <- readRDS("data/lfmm_ridge_results_mean_annual_temp.rds")
-  #lfmm.test.ridge <- readRDS("data/lfmm_ridge_test_results_mean_annual_temp.rds")
-  
   # get p values
   p.values.ridge <- lfmm.test.ridge$calibrated.pvalue
   print(c("lfmm.test.ridge$gif", lfmm.test.ridge$gif))
-  
-  # plots
-  #hist(p.values.ridge, col = "lightgreen", main="LFMM ridge")
-  #qval <- qvalue::qvalue(p.values.ridge)
-  #plot(qval)
-  print("Plotting LF 1 and 2")
-  png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.png", sep = "_"))
-  plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = comb_metadata[which(comb_metadata$wild_for_assoc == 1),]$color, pch = 19, 
-       main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
-  text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 20, labels = pop_object$Pop.ID, cex = 0.6)
-  dev.off()
-  rm(lfmm.test.ridge)
-  rm(lfmm.ridge)
- 
-  LFMM_ridge_0.0_log10p <- -log10(as.numeric(p.values.ridge))
-  rm(p.values.ridge)
-  # LFMM plot
-  png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.png", sep = "_"))
-  plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = "LFMM Ridge P-values")
-  dev.off()
   
   
   # spearman's correlation
   print("Calculating spearman's correlation")
   absSpCor <- abs(cor(scaled.envi, scaled.genotype, method = "spearman"))
-  png(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.png", sep = "_"))
-  plot(absSpCor, LFMM_ridge_0.0_log10p, main = "Spearmann's Rho vs LFMM Ridge")
-  abline(lm(LFMM_ridge_0.0_log10p ~ as.vector(absSpCor)), col = "red")
-  dev.off()
   
-  unique_ID <- sprintf("%02d_%09d", pop_object$Chr, pop_object$Pos)
-  print("Creating data frame")
+  if (plots){
+    ### LF Pplot
+    print("Plotting LF 1 and 2")
+    png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "LF_plot.png", sep = "_"))
+    plot(lfmm.ridge$U[,1], lfmm.ridge$U[,2], col = metadata[which(metadata$wild_for_assoc == 1),]$color, pch = 19, 
+         main = paste("LFMM Ridge", envi_var,"Association"), xlab = "LF1", ylab = "LF2")
+    text(lfmm.ridge$U[,1], lfmm.ridge$U[,2] + 20, labels = pop_object$Pop.ID, cex = 0.6)
+    dev.off()
+    rm(lfmm.test.ridge)
+    rm(lfmm.ridge)
 
-  print("making matrix")
+    # LFMM p-value plot
+    LFMM_ridge_0.0_log10p <- -log10(as.numeric(p.values.ridge))
+    rm(p.values.ridge)
+    png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.png", sep = "_"))
+    plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = "LFMM Ridge P-values")
+    dev.off()
+    
+    # Spearmann's vs LFMM
+    png(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.png", sep = "_"))
+    plot(absSpCor, LFMM_ridge_0.0_log10p, main = "Spearmann's Rho vs LFMM Ridge")
+    abline(lm(LFMM_ridge_0.0_log10p ~ as.vector(absSpCor)), col = "red")
+    dev.off()
+  }
+  
+  ### Save the results
+  print("Creating data frame")
+  unique_ID <- sprintf("%02d_%09d", pop_object$Chr, pop_object$Pos)
+  # make data into a matrix
   stat_matrix <- matrix(c(pop_object$Pos, pop_object$Chr, unique_ID, 
 		     LFMM_ridge_0.0_log10p, absSpCor), ncol = 5, nrow = length(unique_ID))
-  print("matrix to data frame")
+  # matrix to dataframe
   out_table <- as.data.frame(stat_matrix)
-
-  print(str(out_table))
-  print("Naming data frame") 
+  # rename columns
   colnames(out_table) <- c("Pos", "Chr", "Unique", 
 			   paste("LFMM_ridge_0.0_log10p", envi_var, "wild_for_assoc",sep = "_"),
                            paste("Spearmanns_Rho_ABS", envi_var, "wild_for_assoc", sep = "_"))
-  print("saving dataframe")
-  if (!dir.exists("data/envi_assoc_results")){
-      dir.create("data/envi_assoc_results")
-  }
-  write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
-               quote = FALSE, sep = "\t", row.names = FALSE)
+  return(out_table)
 }
 
-calcEnviLFMMandSpRho(envi_var = "Mean_Annual_Temperature_Celsius", pop_object = wild)
+#### Read in and process the data
+all_data        <- readRDS("data/large_data/genotypeMatrix.rds")
+print("Reading and processing metadata")
+metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
+envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
 
+all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata)
+wild <- subsetGenoData(all_data, all_metadata)
+
+### Make a scree plot to identify the K value to use
+print("plotting PCA scree plot")
+png("figures/6envi_assoc/PCA_scree_plot.png")
+PCA <- prcomp(wild$G)
+plot(PCA, type = "l", main = "PCA Scree Plot")
+dev.off()
+
+## Calc statistics and generate plots
+out_table <- calcEnviLFMMandSpRho(envi_var = "Mean_Annual_Temperature_Celsius", pop_object = wild, metadata = all_metadata, plots = TRUE)
+print("saving dataframe")
+if (!dir.exists("data/envi_assoc_results")){
+  dir.create("data/envi_assoc_results")
+}
+write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
+            quote = FALSE, sep = "\t", row.names = FALSE)
