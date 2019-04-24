@@ -174,6 +174,7 @@ metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors 
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
 
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata)
+
 wild <- subsetGenoData(all_data, all_metadata)
 
 ### Make a scree plot to identify the K value to use
@@ -189,5 +190,6 @@ print("saving dataframe")
 if (!dir.exists("data/envi_assoc_results")){
   dir.create("data/envi_assoc_results")
 }
+envi_var <- "Mean_Annual_Temperature_Celsius"
 write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
             quote = FALSE, sep = "\t", row.names = FALSE)
