@@ -37,7 +37,7 @@ combineMetadata <- function(metadata, envi_metadata, plot_colors){
                           envi_metadata[which(envi_metadata$Sample.ID %in% metadata$Sample.ID), 
                           which(! names(envi_metadata) %in% common_cols[-1])],   # index 1 is Sample.ID, keep that to merge 
                           by = "Sample.ID", all = T)
-  comb_metadata <- merge(comb_metadata, plot_colors, by = "Sample.ID")
+  comb_metadata <- merge(comb_metadata, plot_colors, by = "custom.id")
   comb_metadata <- comb_metadata[order(comb_metadata$vcf_order), ]
   return(comb_metadata)
 }
