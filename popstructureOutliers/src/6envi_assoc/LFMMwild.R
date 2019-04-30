@@ -179,12 +179,13 @@ plot_metadata  <- read.csv("data/PopPlotting_COLORS.csv", stringsAsFactors = FAL
 
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
-wild <- subsetGenoData(all_data, all_metadata)
+#wild <- subsetGenoData(all_data, all_metadata)
+wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
 
 # quick check
 
-print(paste0("Wild Sample.ID matches metadata Sample.ID? --- ", identical(wild$Sample.ID, all_metadata$Sample.ID)))
-if (! identical(wild$Sample.ID, all_metadata$Sample.ID)){
+print(paste0("Wild Sample.ID matches metadata Sample.ID? --- ", identical(wild$Sample.ID, all_metadata$Sample.ID[which(all_metadata$wild_for_assoc == 1)])))
+if (! identical(wild$Sample.ID, all_metadata$Sample.ID[which(all_metadata$wild_for_assoc == 1)])){
   stop("Genotype matrix and metadata don't match")
 }
 
@@ -198,8 +199,10 @@ dev.off()
 
 ## Calc statistics and generate plots
 
-envi_variables <- c("Lat","Long", "Temp_C", "Mean_Annual_Temp_Celsius", "Max_temperature_Celsius", "Min_temperature_Celsius",
+envi_variables <- c("Max_temperature_Celsius", "Min_temperature_Celsius",
                     "Mean_Annual_Salinity_ppt", "dd_0", "dd_30")
+
+#"Lat","Long", "Temp_C", "Mean_Annual_Temperature_Celsius", 
 
 for (var in envi_variables){
   message("----------------------------------------------------")
@@ -211,7 +214,7 @@ for (var in envi_variables){
   if (!dir.exists("data/envi_assoc_results")){
     dir.create("data/envi_assoc_results")
   }
-  write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
+  write.table(out_table, file = paste0("data/envi_assoc_results/", var, "_assoc_results.txt"), 
               quote = FALSE, sep = "\t", row.names = FALSE)
 }
 
