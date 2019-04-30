@@ -27,7 +27,7 @@ library(lfmm)
 #
 #////////////////////////////////////////////////////////////////////////
 
-combineMetadata <- function(metadata, envi_metadata){
+combineMetadata <- function(metadata, envi_metadata, plot_colors){
   # make the Wild.Sel column match between the two metadata files
   envi_metadata$Wild.Sel[which(envi_metadata$Wild.Sel == "inbred")] <- "I"
 
@@ -37,6 +37,8 @@ combineMetadata <- function(metadata, envi_metadata){
                           envi_metadata[which(envi_metadata$Sample.ID %in% metadata$Sample.ID), 
                           which(! names(envi_metadata) %in% common_cols[-1])],   # index 1 is Sample.ID, keep that to merge 
                           by = "Sample.ID", all = T)
+  comb_metadata <- merge(comb_metadata, plot_colors, by = "Sample.ID")
+  comb_metadata <- comb_metadata[order(comb_metadata$vcf_order), ]
   return(comb_metadata)
 }
 #///////////////////////////////////////////////////////////////////////////
@@ -60,9 +62,10 @@ combineMetadata <- function(metadata, envi_metadata){
 subsetGenoData <- function(geno_data, comb_metadata){
   # ### Select only Wild populations to rewrite matrix
   print("Selecting wild_for_assoc populations")
-  wild        <- geno_data
-  wild$G      <- geno_data$G[, which(comb_metadata$wild_for_assoc == 1)]
-  wild$Pop.ID <- geno_data$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
+  wild           <- geno_data
+  wild$G         <- geno_data$G[, which(comb_metadata$wild_for_assoc == 1)]
+  wild$Pop.ID    <- geno_data$Pop.ID[which(comb_metadata$wild_for_assoc == 1)]
+  wild$Sample.ID <- geno_data$Sample.ID[which(comb_metadata$wild_for_assoc == 1)]
    
   # The genotype matrix has some fixed values, remove them before proceeding
   print("Removing fixed sites")
@@ -172,10 +175,19 @@ all_data        <- readRDS("data/large_data/genotypeMatrix.rds")
 print("Reading and processing metadata")
 metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
+plot_metadata  <- read.csv("data/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
 
-all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata)
+all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
 wild <- subsetGenoData(all_data, all_metadata)
+
+# quick check
+
+print(paste0("Wild Sample.ID matches metadata Sample.ID? --- ", identical(wild$Sample.ID, all_metadata$Sample.ID)))
+if (! identical(wild$Sample.ID, all_metadata$Sample.ID)){
+  stop("Genotype matrix and metadata don't match")
+}
+
 
 ### Make a scree plot to identify the K value to use
 print("plotting PCA scree plot")
@@ -185,11 +197,21 @@ plot(PCA, type = "l", main = "PCA Scree Plot")
 dev.off()
 
 ## Calc statistics and generate plots
-out_table <- calcEnviLFMMandSpRho(envi_var = "Mean_Annual_Temperature_Celsius", pop_object = wild, metadata = all_metadata, plots = TRUE)
-print("saving dataframe")
-if (!dir.exists("data/envi_assoc_results")){
-  dir.create("data/envi_assoc_results")
+
+envi_variables <- c("Lat","Long", "Temp_C", "Mean_Annual_Temp_Celsius", "Max_temperature_Celsius", "Min_temperature_Celsius",
+                    "Mean_Annual_Salinity_ppt", "dd_0", "dd_30")
+
+for (var in envi_variables){
+  message("----------------------------------------------------")
+  message(paste0("STARTING ANALYSIS FOR: ", var))
+  message("----------------------------------------------------")
+  
+  out_table <- calcEnviLFMMandSpRho(envi_var = var, pop_object = wild, metadata = all_metadata, plots = TRUE)
+  print("saving dataframe")
+  if (!dir.exists("data/envi_assoc_results")){
+    dir.create("data/envi_assoc_results")
+  }
+  write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
+              quote = FALSE, sep = "\t", row.names = FALSE)
 }
-envi_var <- "Mean_Annual_Temperature_Celsius"
-write.table(out_table, file = paste0("data/envi_assoc_results/", envi_var, "_assoc_results.txt"), 
-            quote = FALSE, sep = "\t", row.names = FALSE)
+
