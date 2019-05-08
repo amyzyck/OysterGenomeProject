@@ -16,6 +16,10 @@
 
 ![long](../figures/6envi_assoc/LFMM_ridge_0.0_Long_pvalues_plot.png)
 
+## Mean Temperature
+
+![mean_temp](../figures/6envi_assoc/LFMM_ridge_0.0_Mean_Annual_Temperature_Celsius_pvalues_plot.png)
+
 ## Max Temperature
 
 ![max](../figures/6envi_assoc/LFMM_ridge_0.0_Max_temperature_Celsius_pvalues_plot.png)
