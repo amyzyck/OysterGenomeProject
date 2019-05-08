@@ -127,8 +127,11 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
   
   
   # spearman's correlation
-  print("Calculating spearman's correlation")
-  absSpCor <- abs(cor(scaled.envi, scaled.genotype, method = "spearman"))
+  print("Calculating spearman's correlation")t
+  corTest  <- cor.test(scaled.envi, scaled.genotype, method = "spearman")
+  
+  absSpCor     <- abs(corTest$parameter)
+  spCor_log10p <- -log10(corTest$p.value)
   
   if (plots){
     ### LF Pplot
@@ -145,7 +148,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
     LFMM_ridge_0.0_log10p <- -log10(as.numeric(p.values.ridge))
     rm(p.values.ridge)
     png(paste("figures/6envi_assoc/LFMM_ridge_0.0", envi_var, "pvalues_plot.png", sep = "_"))
-    plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = "LFMM Ridge P-values")
+    plot(pop_object$Pos, LFMM_ridge_0.0_log10p, main = paste(envi_var, "LFMM Ridge P-values"))
     dev.off()
     
     # Spearmann's vs LFMM
@@ -160,13 +163,14 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
   unique_ID <- sprintf("%02d_%09d", pop_object$Chr, pop_object$Pos)
   # make data into a matrix
   stat_matrix <- matrix(c(pop_object$Pos, pop_object$Chr, unique_ID, 
-		     LFMM_ridge_0.0_log10p, absSpCor), ncol = 5, nrow = length(unique_ID))
+		     LFMM_ridge_0.0_log10p, absSpCor, spCor_log10p), ncol = 5, nrow = length(unique_ID))
   # matrix to dataframe
   out_table <- as.data.frame(stat_matrix)
   # rename columns
   colnames(out_table) <- c("Pos", "Chr", "Unique", 
-			   paste("LFMM_ridge_0.0_log10p", envi_var, "wild_for_assoc",sep = "_"),
-                           paste("Spearmanns_Rho_ABS", envi_var, "wild_for_assoc", sep = "_"))
+			                     paste("LFMM_ridge_0.0_log10p", envi_var, "wild_for_assoc",sep = "_"),
+                           paste("Spearmanns_Rho_ABS", envi_var, "wild_for_assoc", sep = "_"),
+                           paste("Spearmanns_Rho_log10p", envi_var, "wild_for_assoc", sep = "_"))
   return(out_table)
 }
 
@@ -176,6 +180,14 @@ print("Reading and processing metadata")
 metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
 plot_metadata  <- read.csv("data/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
+
+#### recode envi_metadata pressure variables
+# low = 1, medium = 2, high = 3
+envi_metadata$Dermo_pressure <- factor(envi_metadata$Dermo_pressure, levels(factor(envi_metadata$Dermo_pressure))[c(2,3,1)])
+envi_metadata$Dermo_pressure <- as.numeric(envi_metadata$Dermo_pressure)
+# none = 0, low = 1, sporadic = 2, high = 3
+envi_metadata$MSX_pressure <- factor(envi_metadata$MSX_pressure, levels(factor(envi_metadata$MSX_pressure))[c(3,2,4,1)])
+envi_metadata$MSX_pressure <- as.numeric(envi_metadata$MSX_pressure) - 1
 
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
@@ -200,9 +212,9 @@ dev.off()
 ## Calc statistics and generate plots
 
 envi_variables <- c("Max_temperature_Celsius", "Min_temperature_Celsius",
-                    "Mean_Annual_Salinity_ppt", "dd_0", "dd_30")
-
-#"Lat","Long", "Temp_C", "Mean_Annual_Temperature_Celsius", 
+                    "Mean_Annual_Salinity_ppt", "dd_0", "dd_30", "Lat",
+                    "Long", "Temp_C", "Mean_Annual_Temperature_Celsius",
+                    "Dermo_pressure", "MSX_pressure")
 
 for (var in envi_variables){
   message("----------------------------------------------------")
