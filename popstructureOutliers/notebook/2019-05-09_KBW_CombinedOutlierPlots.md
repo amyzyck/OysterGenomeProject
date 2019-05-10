@@ -4,7 +4,7 @@ I have combined the OutFLANK and PCAdapt outlier plots into a 2 x 1 matrix plot 
 
 ## PCAdapt Outliers and Transformation of Negative Log10 P-values
 
-Through following the PCAdapt (documentation)[https://cran.r-project.org/web/packages/pcadapt/vignettes/pcadapt.html], I realized that I had not written the code in `outlierAnalysis.R` to include a column in the final data that marks SNPs as outliers using PCAdapt. Also, the final data that we have right now has the negative log10 p-value rather than the raw p-values. When finding outliers using PCAdapt you need the raw p-values. For the time being and to create the current plots I have just transformed the negative log10 p-values back using the inverse: `10^-(negativeLog10p)`.
+Through following the PCAdapt [documentation](https://cran.r-project.org/web/packages/pcadapt/vignettes/pcadapt.html) , I realized that I had not written the code in `outlierAnalysis.R` to include a column in the final data that marks SNPs as outliers using PCAdapt. Also, the final data that we have right now has the negative log10 p-value rather than the raw p-values. When finding outliers using PCAdapt you need the raw p-values. For the time being and to create the current plots I have just transformed the negative log10 p-values back using the inverse: `10^-(negativeLog10p)`.
 
 When finding the outliers, I used the Benjamini-Hochberg procedure which is a moderately conservative method. This can be changed easily if a different procedure is desirable.
 
