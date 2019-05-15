@@ -1,0 +1,13 @@
+
+VCFtools - 0.1.15
+(C) Adam Auton and Anthony Marcketta 2009
+
+Parameters as interpreted:
+	--vcf SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs.vcf
+	--counts
+	--out testcounts10k
+
+After filtering, kept 90 out of 90 Individuals
+Outputting Frequency Statistics...
+After filtering, kept 5996 out of a possible 5996 Sites
+Run Time = 1.00 seconds

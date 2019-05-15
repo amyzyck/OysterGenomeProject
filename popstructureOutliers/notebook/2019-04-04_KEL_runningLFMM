@@ -1,0 +1,15 @@
+# 20190404 Running LFMM for environmental associations
+
+We should think about how we plan to run LFMM. For outflank and pcadapt, we are using a set of ~200K genome-wide SNPs to capture 
+the neutral population structure and demography, which is used as a null hypothesis in the statistical test. We can run these on 
+individual chromosomes one at a time (the way Bodie's code works), because we use the same set of SNPs to control for structure.
+
+LFMM works a bit different, by using the input set of SNPs to estimate the association and latent factors (e.g., the factors that 
+capture the population structure and demography) jointly. This means that if we run LFMM on one chromosome at a time, the latent factors 
+would be modeling the neutral demography for that chromosome and not for the whole genome.
+
+In the end it depends on the appropriate null hypothesis - should a SNP on a chromosome be called an outlier if it is different from 
+the demographic history of the whole genome, or different from the demographic history of the chromosome it is located on? But have 
+value and different interpretation. But for comparison to PCAdapt and Outflank, it probably makes more sense to run LFMM on the full set of
+genome-wide SNPs rather than one chromosome at a time, since in this case the latent factors should be capturing the whole-genome 
+demography.

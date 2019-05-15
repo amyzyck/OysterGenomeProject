@@ -1,0 +1,14 @@
+PLINK v1.90b6.1 64-bit (28 May 2018)
+Options in effect:
+  --const-fid
+  --vcf SNP.TRSdp5g95FnDNAmaf05_50KThinnedRandomSNPs13PCs.vcf
+
+Hostname: kevin-Swift-SF314-51
+Working directory: /media/kevin/TOSHIBA_EXT/oyster_genome_project/50KThinnedRandomSNPs13PCs/source_files
+Start time: Tue Oct 16 11:42:37 2018
+
+Random number seed: 1539704557
+7844 MB RAM detected; reserving 3922 MB for main workspace.
+--vcf: plink.bed + plink.bim + plink.fam written.
+
+End time: Tue Oct 16 11:42:37 2018

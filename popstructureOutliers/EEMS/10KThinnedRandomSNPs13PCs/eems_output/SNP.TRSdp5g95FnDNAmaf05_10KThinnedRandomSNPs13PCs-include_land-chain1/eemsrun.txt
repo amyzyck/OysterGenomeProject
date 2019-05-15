@@ -1,0 +1,41 @@
+Input parameter values:
+               datapath = ../../../10KThinnedRandomSNPs13PCs/SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs-include_land
+               mcmcpath = ../../../10KThinnedRandomSNPs13PCs/eems_output/SNP.TRSdp5g95FnDNAmaf05_10KThinnedRandomSNPs13PCs-include_land-chain1
+               prevpath = 
+               gridpath = 
+               distance = euclidean
+                diploid = 1
+                 nIndiv = 53
+                 nSites = 5996
+                 nDemes = 500
+                   seed = 1539789035
+            numMCMCIter = 2000000
+            numBurnIter = 1000000
+            numThinIter = 9999
+              negBiSize = 10
+              negBiProb = 0.670000
+             qVoronoiPr = 0.250000
+             mrateShape = 0.000500
+             qrateShape = 0.002000
+             sigmaShape = 0.001000
+             qrateScale = 0.500000
+             mrateScale = 2.000000
+             sigmaScale = 1.000000
+       mSeedsProposalS2 = 0.010000
+       qSeedsProposalS2 = 0.100000
+       mEffctProposalS2 = 0.900000
+       qEffctProposalS2 = 0.030000
+      mrateMuProposalS2 = 0.010000
+
+Acceptance proportions:
+	(40425/125054) = 32% for proposal type "qTileRate",		 with proposal variance "qEffctProposalS2"
+	(95187/125115) = 76% for proposal type "qTileMove",		 with proposal variance "qSeedsProposalS2"
+	(95163/125642) = 76% for proposal type "qBirthDeath"
+	(155358/374230) = 42% for proposal type "mTileRate",		 with proposal variance "mEffctProposalS2"
+	(96393/250065) = 39% for proposal type "mMeanRate",		 with proposal variance "mrateMuProposalS2"
+	(239618/374897) = 64% for proposal type "mTileMove",		 with proposal variance "mSeedsProposalS2"
+	(117035/375000) = 31% for proposal type "mBirthDeath"
+	(163830/249997) = 66% for proposal type "degrees of freedom"
+
+Final log prior: 88.30
+Final log llike: 3031.67

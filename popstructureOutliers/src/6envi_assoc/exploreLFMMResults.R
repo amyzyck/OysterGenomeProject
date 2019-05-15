@@ -1,0 +1,71 @@
+---
+title: "explore_envi_assoc"
+author: "Kevin Freeman"
+date: "April 30, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read in data
+```{r}
+setwd("/media/kevin/TOSHIBA_EXT/LOTTERHOS_LAB/OysterGenomeProject/popstructureOutliers/data")
+lfmm_ridge <- readRDS("lfmm_ridge_results_mean_annual_temp.rds")
+lfmm_test  <- readRDS("lfmm_ridge_test_results_mean_annual_temp.rds")
+G_matrix   <- readRDS("genotypeMatrix_selecting_Wild.rds")
+```
+
+## identify "weird" loci
+```{r}
+pval_38 <- which(lfmm_test$calibrated.pvalue >= 1.56e-39 & lfmm_test$calibrated.pvalue <= 1.57e-39)
+pval_20 <- which(lfmm_test$calibrated.pvalue >= 2.62e-21 & lfmm_test$calibrated.pvalue <= 2.63e-21) 
+
+
+```
+
+
+## Label with metadata
+
+```{r}
+metadata           <- read.csv("modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
+identical(metadata$Sample.ID, G_matrix$Sample.ID)
+G_matrix$Sample.ID <- G_matrix$Sample.ID[which(metadata$wild_for_assoc == 1)]
+```
+
+## Examine weird loci
+
+```{r}
+G_matrix$Sample.ID
+colnames(G_matrix$G) <- G_matrix$Sample.ID
+rownames(G_matrix$G) <- paste(G_matrix$Chr, G_matrix$Pos, sep = "_")
+
+head(G_matrix$G[pval_20,]) 
+tail(G_matrix$G[pval_20,])
+
+```
+
+```{r}
+
+head(G_matrix$G[pval_38,])
+tail(G_matrix$G[pval_38,])
+
+```
+
+Fixed at CL and SL (Louisiana wild populations) and CS_3 is heterozygote from delaware bay (high salinity)
+
+```{r}
+plot(lfmm_ridge$U[,1], lfmm_ridge$U[,2], col = metadata[which(metadata$wild_for_assoc == 1),]$color, pch = metadata$Pop.ID[which(metadata$wild_for_assoc == 1)], 
+         main = paste("LFMM Ridge Mean Temp Association"), xlab = "LF1", ylab = "LF2")
+
+metadata$Pop.ID
+```
+
+## Plot without weird loci
+
+```{r}
+
+plot(G_matrix$Pos[-c(pval_38, pval_20)], -log10(lfmm_test$calibrated.pvalue[-c(pval_38, pval_20)]))
+
+```
