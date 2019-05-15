@@ -781,7 +781,8 @@ CreateIntervals()
 samtools merge -@$NUMProc -b bamlist.list -f filter.merged.bam &>/dev/null
 samtools index filter.merged.bam 
 wait
-bamToBed -i filter.merged.bam | bedtools merge -i - > mapped.bed
+mawk -v OFS='\t' {'print \$1,\$2'} $reference.fai > genome.file
+bedtools merge -i filter.merged.bam -bed >  mapped.bed
 }
 
 #This checks that dDocent has detected the proper number of individuals and exits if incorrect
