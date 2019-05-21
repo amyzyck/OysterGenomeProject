@@ -14,3 +14,6 @@
 
 `https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/IGV%20Tracks/coverage.xml`
 
+04-IGVTracks_OutlierDetectionEnviAssocCombined.xml
+
+`https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/IGV%20Tracks/IGVTracks_OutlierDetectionEnviAssocCombined.xml`
