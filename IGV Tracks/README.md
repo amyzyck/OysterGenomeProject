@@ -19,4 +19,4 @@
 `https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/IGV%20Tracks/IGVTracks_OutlierDetectionEnviAssocCombined.xml`
 
 05 - Base_CAFE_dup_disease_loci_missassembly.xml
-'https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/IGV%20Tracks/Base_CAFE_dup_disease_loci_missassembly.xml'
+`https://raw.githubusercontent.com/jpuritz/OysterGenomeProject/master/IGV%20Tracks/Base_CAFE_dup_disease_loci_missassembly.xml`
