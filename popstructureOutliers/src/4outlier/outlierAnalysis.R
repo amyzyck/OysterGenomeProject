@@ -25,6 +25,10 @@ library(bigsnpr)
 library(dplyr)
 
 getFixedSites <- function(genotype.matrix = NULL) {
+    # Identifies and returns the indices of all loci that are fixed across individuals
+    #
+    # Args:
+    #   genotype.matrix
     # Convert to format (file-backed matrix; 'FBM') that Prive uses
     # in his walk-through.
 
@@ -152,6 +156,34 @@ fstByChromosome <- function(data.file,
 #
 ###############################################################################
 
+getThinnedSnps <- function(data = NULL,
+                           subset.name = NULL,
+                           pca.loadings = 13, 
+                           window = 5000, 
+                           nb.cores = 4){
+
+    # Code the genotype matrix so that it can be used in snp_autoSVD()
+    G_FBM <- add_code256(big_copy(t(data$G), type="raw"), code = bigsnpr:::CODE_012)
+    
+    # Run snp_autoSVD on the full dataset
+    fullDatasetSVD <- snp_autoSVD(G_FBM,
+                                  infos.chr = data$Chr,
+                                  infos.pos = data$Pos,
+                                  k = pca.loadings,
+                                  size = window,
+                                  is.size.in.bp = TRUE,
+                                  ncores = nb.cores)
+
+    # Get the SNPs and their associated positions, chromosome locations and Pop.ID 
+    thinnedMatrixAndMetaData <- list(G = data$G[attr(fullDatasetSVD, "subset"), ],
+                                     Pos = data$Pos[attr(fullDatasetSVD, "subset")],
+                                     Chr = data$Chr[attr(fullDatasetSVD, "subset")],
+                                     Pop.ID = data$Pop.ID,
+                                     Sample.ID = data$Sample.ID)
+
+    return(thinnedMatrixAndMetaData)
+}
+
 preprocess.neutralParams <- function(rand.snps,
                                      metadata,
                                      subset.name = NULL) {
@@ -175,15 +207,16 @@ preprocess.neutralParams <- function(rand.snps,
             data$G <- data$G[, -which(data$Sample.ID %in% rm.samples)]
             data$Pop.ID <- data$Pop.ID[-which(data$Sample.ID %in% rm.samples)]
             data$Sample.ID <- data$Sample.ID[-which(data$Sample.ID %in% rm.samples)]
+            
+            fixed.sites <- getFixedSites(data$G)
+            
+            if (length(fixed.sites) != 0) {
+                data$G <- data$G[-fixed.sites, ]
+                data$Pos <- data$Pos[-fixed.sites]
+                data$Chr <- data$Chr[-fixed.sites]
+            }
         }
     }
-
-    fixed.sites <- getFixedSites(data$G)
-    if (length(fixed.sites) != 0) {
-        data$G <- data$G[-fixed.sites, ]
-        data$Pos <- data$Pos[-fixed.sites]
-        data$Chr <- data$Chr[-fixed.sites]
-    }    
 
     if (length(data$Pop.ID) != ncol(data$G)) {
         stop("Number of Pop.ID in dataset and labels does not match")
@@ -238,7 +271,6 @@ neutralParams <- function (rand.snps,
                                             metadata = metadata, 
                                             subset.name = subset.name)
 
-
     pops <- length(unique(subset.data$Pop.ID))
 
     fst.stat <- MakeDiploidFSTMat(t(subset.data$G), 
@@ -255,21 +287,28 @@ neutralParams <- function (rand.snps,
                                   return(data)
                               })
 
+    png(paste(plots.path, 
+              "/heteroVsFst_", 
+              gsub("\\.", "_", subset.name), 
+              ".png", 
+              sep=""))
     plot(fst.stat$He, fst.stat$FST)
-    dev.copy(png, paste(plots.path, 
-                        "/heteroVsFst_",
-                        gsub("\\.", "_", subset.name), 
-                        ".png", sep=""))
     dev.off()
 
+    png(paste(plots.path, 
+              "/fstNoCorrVsFst_",
+              gsub("\\.", "_", subset.name), 
+              ".png", 
+              sep=""))
     plot(fst.stat$FST, fst.stat$FSTNoCorr)
     abline(0,1)
-    dev.copy(png, paste(plots.path, 
-                        "/fstNoCorrVsFst_",
-                        gsub("\\.", "_", subset.name), 
-                        ".png", sep=""))
     dev.off()
     
+    png(paste(plots.path, 
+              "/outflankResults_",
+              gsub("\\.", "_", subset.name), 
+              ".png", 
+              sep=""))
     OutFLANKResultsPlotter(outflank.data, 
                            withOutliers = TRUE, 
                            NoCorr = TRUE, 
@@ -278,13 +317,13 @@ neutralParams <- function (rand.snps,
                            Zoom = FALSE, 
                            RightZoomFraction = 0.05, 
                            titletext = NULL)
-    
-    dev.copy(png, paste(plots.path, 
-                        "/outflankResults_",
-                        gsub("\\.", "_", subset.name), 
-                        ".png", sep=""))
     dev.off()
 
+    png(paste(plots.path, 
+              "/outflankResultsRightTail_",
+              gsub("\\.", "_", subset.name), 
+              ".png", 
+              sep=""))
     OutFLANKResultsPlotter(outflank.data, 
                    withOutliers = TRUE, 
                    NoCorr = TRUE, 
@@ -293,11 +332,6 @@ neutralParams <- function (rand.snps,
                    Zoom = TRUE, 
                    RightZoomFraction = 0.15, 
                    titletext = NULL)
-
-    dev.copy(png, paste(plots.path, 
-                        "/outflankResultsRightTail_",
-                        gsub("\\.", "_", subset.name), 
-                        ".png", sep=""))
     dev.off()
 
     saveRDS(fst.stat, paste(data.path, 
@@ -402,55 +436,7 @@ outflank.outlierFinder <- function(data.file = NULL,
     
     outlier <- P1$OutlierFlag == TRUE
 
-    # png(paste(folder.path, "/outlierPlotUsing_", data.file , ".png", sep=""), 
-    #     height = 512,
-    #     width = 2048)
-    # plot(P1$He, P1$FST, pch = 19, col = rgb(0,0,0,0.1))
-    # points(P1$He[outlier], P1$FST[outlier], col = "blue")
-    # dev.off()
-
-     # hist(P1$pvaluesRightTail)
-
     chr <- as.numeric(gsub("[^0-9]", "",  data.file))
-
-    plot_x <- P1$LocusName[P1$He > 0.1]
-
-    if (nchar(length(plot_x)) == 6) {
-        tick_intervals <- round(length(plot_x) / 10000)
-    } else {
-        tick_intervals <- round(length(plot_x) / 5000)
-    }
-    
-    ticks <- plot_x[seq(1, length(plot_x), by = round(length(plot_x)/tick_intervals))]
-
-    png(paste(plots.path, 
-              "/manhattanPlotUsing_", 
-              data.file, 
-              ".png", sep=""), 
-        height = 720,
-        width = 2048)
-    par(mar = c(8, 4, 2, 1))
-    plot(P1$LocusName[P1$He > 0.1], 
-         P1$FST[P1$He > 0.1],
-         ylab="FST",
-         xlab = "",
-         ylim=c(-0.2, 1.1),
-         xlim=c(min(P1$LocusName), max(P1$LocusName)),
-         main = paste("Manhattan Plot: Chromsome", chr), 
-         col=rgb(0, 0, 0, 0.2),
-         xaxt="n")
-    axis(side = 1,
-         las = 2,
-         at=ticks)
-    mtext(text = "Position (BP)",
-          side = 1,
-          line = 6)
-    if (chr %in% misassembled) {
-        add.breakpoints(chr.index = chr)
-        points(P1$LocusName[P1$He>0.1], P1$FST[P1$He>0.1], pch=20)
-    }
-    points(P1$LocusName[outlier], P1$FST[outlier], col="red", pch=20)
-    dev.off()
 
     tmp <- strsplit(data.path, split="/")[[1]][3]
 
@@ -481,7 +467,7 @@ outflank.outlierFinder <- function(data.file = NULL,
     dir <- getwd()
     setwd(paste(dir, results.path, sep="/"))
     
-    saveRDS(P1, paste("outlierFinder_", data.file, ".rds", sep=""))
+    saveRDS(P1, paste(data.file, ".rds", sep=""))
 
     setwd(dir)
     return(P1)
@@ -516,6 +502,11 @@ pcadaptAnalysis <- function (data,
                              chr.index = NULL,
                              data.path = NULL,
                              plots.path = NULL) {
+
+    if (!dir.exists(file.path(plots.path, "pcadapt"))) {
+            dir.create(file.path(plots.path, "pcadapt"), recursive = TRUE)
+    }
+
     # Loading the full genotype matrix with associated bp positions, chromosomal
     # positions and population id
     data <- readRDS(data)
@@ -533,7 +524,24 @@ pcadaptAnalysis <- function (data,
         rm.samples <- metadata$Sample.ID[which(metadata[, subset.name] == 0)]
         #Check to see if any of the samples in the subset are in the data.
         if (!any(data$Sample.ID %in% rm.samples)) {
-            # If there are no samples specified by the subset in the data        
+            # If there are no samples specified by the subset in the data
+
+            # Getting the coded genotype matrix of the subset in order to run snp_autoSVD()
+            subset.coded <- add_code256(big_copy(t(subset.data$G),
+                                                 type = "raw"), 
+                                        code = bigsnpr:::CODE_012)
+            subset.data$subset.coded <- subset.coded
+
+            # Removing the variables which will not be used any further
+            rm(subset.coded)
+
+            newpc <- big_randomSVD(X = subset.data$subset.coded, 
+                                   fun.scaling = snp_scaleBinom(), 
+                                   k = 20, 
+                                   ncores = 4)
+            png(paste(plots.path, "/pcadapt/scree-plot.png", sep = ""))
+            plot(newpc)
+            dev.off()
         } else {
             # Perform operations for the full dataset
             data$G <- data$G[, -which(data$Sample.ID %in% rm.samples)]
@@ -543,44 +551,42 @@ pcadaptAnalysis <- function (data,
             subset.data$G <- subset.data$G[, -which(subset.data$Sample.ID %in% rm.samples)]
             subset.data$Pop.ID <- subset.data$Pop.ID[-which(subset.data$Sample.ID %in% rm.samples)]
             subset.data$Sample.ID <- subset.data$Sample.ID[-which(subset.data$Sample.ID %in% rm.samples)]
+
+            # After removing some individuals, you may have fixed sites if the removed
+            # individuals were providing the only unique allele type at that site.
+            # We need to find these and remove them from the matrix, Pos, and Chr
+            fixed.sites <- getFixedSites(data$G)
+            if (length(fixed.sites) != 0) {
+                data$G <- data$G[-fixed.sites, ]
+                data$Pos <- data$Pos[-fixed.sites]
+                data$Chr <- data$Chr[-fixed.sites]
+            }
+            # We will do the same for the thinned SNPs 
+            subset.fixed.sites <- getFixedSites(subset.data$G)
+            if (length(subset.fixed.sites) != 0) {
+                subset.data$G <- subset.data$G[-subset.fixed.sites, ]
+                subset.data$Pos <- subset.data$Pos[-subset.fixed.sites]
+                subset.data$Chr <- subset.data$Chr[-subset.fixed.sites]
+            }
+
+            # Getting the coded genotype matrix of the subset in order to run snp_autoSVD()
+            subset.coded <- add_code256(big_copy(t(subset.data$G),
+                                                 type = "raw"), 
+                                        code = bigsnpr:::CODE_012)
+            subset.data$subset.coded <- subset.coded
+
+            # Removing the variables which will not be used any further
+            rm(subset.coded)
+
+            newpc <- big_randomSVD(X = subset.data$subset.coded, 
+                                   fun.scaling = snp_scaleBinom(), 
+                                   k = 20, 
+                                   ncores = 4)
+            png(paste(plots.path, "/pcadapt/scree-plot.png", sep = ""))
+            plot(newpc)
+            dev.off()
         }
-    }
-
-    # After removing some individuals, you may have fixed sites if the removed
-    # individuals were providing the only unique allele type at that site.
-    # We need to find these and remove them from the matrix, Pos, and Chr
-    fixed.sites <- getFixedSites(data$G)
-    if (length(fixed.sites) != 0) {
-        data$G <- data$G[-fixed.sites, ]
-        data$Pos <- data$Pos[-fixed.sites]
-        data$Chr <- data$Chr[-fixed.sites]
-    }
-    # We will do the same for the thinned SNPs 
-    subset.fixed.sites <- getFixedSites(subset.data$G)
-    if (length(subset.fixed.sites) != 0) {
-        subset.data$G <- subset.data$G[-subset.fixed.sites, ]
-        subset.data$Pos <- subset.data$Pos[-subset.fixed.sites]
-        subset.data$Chr <- subset.data$Chr[-subset.fixed.sites]
-    }
-
-    # Getting the coded genotype matrix of the subset in order to run snp_autoSVD()
-    subset.coded <- add_code256(big_copy(t(subset.data$G),
-                                         type = "raw"), 
-                                code = bigsnpr:::CODE_012)
-    subset.data$subset.coded <- subset.coded
-    
-    # Removing the variables which will not be used any further
-    rm(subset.coded)
-
-    newpc <- big_randomSVD(X = subset.data$subset.coded, 
-                           fun.scaling = snp_scaleBinom(), 
-                           k = 10, 
-                           ncores = 4)
-    # newpc <- snp_autoSVD(G = subset.data$subset.coded,
-    #                      infos.chr = subset.data$Chr,
-    #                      infos.pos = subset.data$Pos,
-    #                      size = 50000,
-    #                      is.size.in.bp = TRUE)        
+    }            
 
     if (length(data$Pop.ID) != ncol(data$G)) {
         stop("Number of Pop.ID in dataset and labels does not match")
@@ -633,28 +639,48 @@ pcadaptAnalysis <- function (data,
                         sep="_")
 
         # pcadapt on all loci but with the pruned PCs
-        pcadapt_4.0.3_bigsnpr_0.8.2_Md <- snp_pcadapt(one.chr$G.coded, U.row = newpc$u[, 1:5])
-        full_stats_pcadapt_4.0.3_bigsnpr_0.8.2 <- snp_gc(pcadapt_4.0.3_bigsnpr_0.8.2_Md)
-        # get the negative log10 values of the results.
-        pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p <- -predict(full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, log10=T)
-        # put the full results and the negative log10 values into a dataframe.
+        m.dist <- snp_pcadapt(one.chr$G.coded, U.row = newpc$u[, 1:14])
 
-        # I could put the entire dataset into the file but not needed at the time of writing.
-        # "full_stats_pcadapt_4.0.3_bigsnpr_0.8.2" = full_stats_pcadapt_4.0.3_bigsnpr_0.8.2, 
+        png(paste(plots.path, "/pcadapt/snp-qq_snp-pcadapt.png", sep = ""))
+        snp_qq(m.dist)
+        dev.off()
+
+        md.gc <- snp_gc(m.dist)
+        
+        png(paste(plots.path, "/pcadapt/snp-qq_snp-gc.png", sep = ""))
+        snp_qq(md.gc)
+        dev.off()
+
+        pvalues <- predict(md.gc, log10 = FALSE)
+        
+        # Benjamini - Hochberg procedure for outlier detection
+        qvalues <- p.adjust(pvalues, method = "BH")
+        # alpha - the percentage of false discoveries among the list of candidate SNPs
+        # Same value that we used for OutFLANK
+        alpha <- 0.00001
+
+        # get the negative log10 values of the results.
+        negativeLog10p <- -predict(md.gc, log10 = TRUE)
+        
+        # put the full results and the negative log10 values into a dataframe.
 
         pcadapt.results <- data.frame("Pos" = one.chr$Pos,
                                       "Chr" = one.chr$Chr,
                                       "unique" = unique,
-                                      "pcadapt_4.0.3_bigsnpr_0.8.2_Md" = pcadapt_4.0.3_bigsnpr_0.8.2_Md$score,
-                                      "pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p" = pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p)
+                                      m.dist$score,
+                                      md.gc,
+                                      negativeLog10p,
+                                      pvalues,
+                                      qvalues,
+                                      "OutlierFlag" = FALSE,
+                                      stringsAsFactors = FALSE)
+                                      
+        pcadapt.results$OutlierFlag[which(qvalues < alpha)] <- TRUE
 
-        names(pcadapt.results)[4] <- paste("pcadapt_4.0.3_bigsnpr_0.8.2_Md", 
-                                            gsub("\\.", "_", subset.name), 
-                                            sep="_")
-        
-        names(pcadapt.results)[5] <- paste("pcadapt_4.0.3_bigsnpr_0.8.2_negativeLog10p", 
-                                            gsub("\\.", "_", subset.name), 
-                                            sep="_")
+        colnames(pcadapt.results)[4:ncol(pcadapt.results)] <- paste("pcadapt_4.0.3_bigsnpr_0.8.2", 
+                                      colnames(pcadapt.results)[4:ncol(pcadapt.results)],
+                                      gsub("\\.", "_", subset.name),
+                                      sep = "_")
 
         results.path <- file.path(data.path, 
                                   paste("/pcadaptAnalysis_", 
@@ -673,13 +699,9 @@ pcadaptAnalysis <- function (data,
         
         combined.data <- rbind(combined.data, pcadapt.results)
     }
-    combined.data$unique <- levels(droplevels(combined.data$unique))
     return(combined.data)
 }
 
-merge.results <- function (outflank.data, pcadapt.data) {
-    joined.data <- full_join(out.data, pc.data, by = c("unique", "Pos", "Chr"))
-}
 # Below is a wrapper function that will allow you to run all of the analyses
 # that you would like while just pressing 'enter'. If you would like to run the
 # analyses for all populations, leave the rm.pops and select.pops parameters as
@@ -688,23 +710,27 @@ merge.results <- function (outflank.data, pcadapt.data) {
 # those parameters, respectively. However, do not put NULL into your
 # concatenated parameters (i.e rm.pops = list(c("LM"), NULL, c("CL")) 
 
-wrapper <- function (data.file = "data/large_data/genotypeMatrix_unrelated.rds",
+wrapper <- function (data.file = NULL,
+                     rand.snps = NULL,
+                     subset.name = NULL,
                      metadata = "data/modified_samplemetadata.csv",
-                     rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
-                     subset.name = subset.name,
                      chr.index = seq(1, 10)) {
     # Create folder structure for the analyses and their outputs depending upon
     # whether they remove or select certain populations
     
     data.path <- file.path("data",
-                            "large_outputs", 
-                            "outlierAnalysis", 
-                            paste("outlierAnalysis_", gsub("\\.", "_", subset.name), sep=""),
-                            "data")
+                           "large_outputs", 
+                           "outlierAnalysis", 
+                           paste("outlierAnalysis_", 
+                                 gsub("\\.", "_", subset.name), 
+                                 sep=""),
+                           "data")
     plots.path <- file.path("data",
                             "large_outputs", 
                              "outlierAnalysis", 
-                             paste("outlierAnalysis_", gsub("\\.", "_", subset.name), sep=""),
+                             paste("outlierAnalysis_", 
+                                   gsub("\\.", "_", subset.name), 
+                                   sep=""),
                              "plots")
     
     if (!dir.exists(data.path)) {
@@ -775,18 +801,51 @@ wrapper <- function (data.file = "data/large_data/genotypeMatrix_unrelated.rds",
     write.table(merged.data, paste(data.path, "/final_merged_data.txt", sep = ""))
 }
 
-# wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
-#         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
-#         subset.name = "exclude.LM")
-
-# wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
-#         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
-#         subset.name = "unrelated")
-
-# wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
-#          rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
-#          subset.name = "atlantic.wild.subset")
-
-wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
+ wrapper(data.file = "data/large_data/genotypeMatrix_exclude_LM.rds",
          rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_exclude_LM.rds",
+         subset.name = "exclude.LM")
+ 
+ wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
+         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
+         subset.name = "unrelated")
+
+ wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
+          rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
+          subset.name = "atlantic.wild.subset")
+
+wrapper(data.file = "data/large_data/genotypeMatrix_unrelated.rds",
+         rand.snps = "data/thinned_snps/thinnedMatrixAndMetaData50000Window_unrelated.rds",
          subset.name = "atlantic.selection.subset")
+
+
+merge.results <- function () {
+    analyses.path <- "data/large_outputs/outlierAnalysis"
+    if (!dir.exists(analyses.path)){
+        stop("You have no outlier analyses to merge.")
+    } else {
+        analyses.folders <- list.files(analyses.path)
+        analyses.folders <- file.path(analyses.path, analyses.folders, "data")
+    }
+
+    tmp <- NULL
+    for (i in 1:length(analyses.folders)) {
+        if (file.exists(paste(analyses.folders[i], "/final_merged_data.txt", sep = ""))) {
+            if (is.null(tmp)) {
+                tmp <- read.table(paste(analyses.folders[i], 
+                               "/final_merged_data.txt",
+                               sep = ""))
+            } else {
+                data <- read.table(paste(analyses.folders[i], 
+                               "/final_merged_data.txt",
+                               sep = ""))
+                tmp <- full_join(tmp, data, by = c("Pos", "Chr", "unique"))
+                rm(data)
+            }
+        }
+    }
+
+    write.table(tmp, "outlier_analysis_merged_data_Lotterhos.txt")
+    
+}
+
+merge.results()
