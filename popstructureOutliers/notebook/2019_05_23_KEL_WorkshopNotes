@@ -1,0 +1,9 @@
+### Comparing SNP-environment associations with CpGOE-Environment associations
+
+Hollie and Steven used a different SNP set to calculate their CpGOE, it was a more lenient set with probably many rare alleles. 
+We see that some of the significant CpGOE-Environment associations are in genes with no SNPs in our dataset.
+We know that SNP-environment associations with rare alleles can be very significant, but are false positives due to one or two variants 
+at one extreme of the environment.
+This suggests that the CpGOE-Env associations we measure are driven by rare alleles, and we are concerned they are false positives.
+
+### 
