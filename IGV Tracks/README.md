@@ -50,4 +50,4 @@ UMFS
 |---------|-------|
 |`*.Combined.SNP.TRSdp5g1FnDNAmaf052alleles.empty.vcf.gz` |All biallelic SNPs called in all populations with a minor allele frequency greater than 0.05|
 |`*.Thinned.SNP.TRSdp5g1FnDNAmaf052alleles.thinnedMatrixAndMetaData50000Window_exclude_LM.empty.vcf.gz`| Thinned SNPs using 50,000 bp Window|
-|`*.Thinned.SNP.TRSdp5g1FnDNAmaf052alleles.thinnedMatrixAndMetaData5000Window_exclude_LM.empty.vcf.gz.| Thinned SNPs using 5,000 bp Window|
+|`*.Thinned.SNP.TRSdp5g1FnDNAmaf052alleles.thinnedMatrixAndMetaData5000Window_exclude_LM.empty.vcf.gz.`| Thinned SNPs using 5,000 bp Window|
