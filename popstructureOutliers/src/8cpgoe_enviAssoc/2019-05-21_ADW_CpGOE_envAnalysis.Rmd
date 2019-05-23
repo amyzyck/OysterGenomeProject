@@ -1,0 +1,70 @@
+---
+title: "CpGOE Environment Association Analysis"
+author: "adowneywall"
+date: "5/22/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview  
+This folder is for the analysis of CpG observed over expected ratios (CpGOE or cpgoe) in association with the various environmental variables we collected for the oyster genome project. The main script ```LFMM_CpGOE.R``` does the heavy lifting by aggregating several environmental meta data files, reducing the samples included in the analysis to only those that are considered 'wild' (also Laguna Madre was removed for being inbred), and  finally performing an association analysis using a latent factor mixed model (currently K = 4) and a spearmans correlation for each genetic feature. 
+
+
+**Notes**  
+- Several .gff3 tracks (for the different major genetic features) have been produced, as well as calculated cpgOE matrices. This need to be specified at the top of the script and should match each other (i.e. a matrix for genes should used the .gff3 for genes). There is a basic sanity check that should throw and error or warning if these files do not match, but this may not be foolproof. 
+
+
+## Data Input Description  
+
+**Meta Datafiles**
+- ```"data/modified_samplemetadata.csv"``` : Contains basic sample info 
+- ```"data/environment/full_sample_metadata_4_20_19_ER.csv"``` : Contains more detailed environmental data for each individual 
+- ```"data/PopPlotting_COLORS.csv"```` : Contains color pallette for plotting. 
+
+**CpGOA Matrix and .gff3**
+- ```"http://gannet.fish.washington.edu/Atumefaciens/20190225_cpg_oe/ID_CpG_labelled_all"``` : A matrix that contains the estimated observed / expected CpG for each feature for each individual. Note: This is a large file kept on gannet. It will be specific to the feature of interest.  
+- ```""data/GCF_002022765.2_C_virginica-3.0_genomic.CDS.gff3""``` : .gff3 file that will contain a list of each instance of a specific genetic feature.  
+
+## Script Usage  
+
+Start in the popstructureOutliers directory. This can be done be setting the working directory, `stwd()`, at the beginning of the script. Next, the CpGOE matrix and .gff3 files should be adjusted for the particular genetic feature of interest. Finally you can run the script from the command line using:   
+  
+`Rscript src/6envi_assoc/LFMMwild.R`  
+  
+This will start the analysis. The script will produce periodic updates on its progress, and will automatically save plots and results tables to the appropriate directoris. Here is an example of successful output for the analysis of association with the "Lat" variable:
+
+```
+----------------------------------------------------
+STARTING ANALYSIS FOR: Lat
+----------------------------------------------------
+[1] "Reading in data..."
+[1] "No duplicate matches found in .gff file, proceeding with script...."
+[1] "plotting PCA scree plot"
+[1] "plotting PCA biplot"
+[1] "Building lfmm ridge model"
+[1] "Running lfmm test"
+[1] "lfmm.test.ridge$gif" "2.89063197471484"   
+[1] "Calculating spearman's correlation"  
+[1] "Plotting LF 1 and 2"
+[1] "Creating data frame"
+[1] "saving dataframe"
+```
+
+## Outputs
+
+1) Before LFMM is run, scree and bi-plots are produced in "figures/7cpgoe_enviAssoc"   
+
+2) (Optional) a Manhattan plot of the p values from the LFMM ridge test is created in "figures/7cpgoe_enviAssoc" called "LFMM_ridge_0.0_[variable name]_pvalues_plot.png" (WARNING currently not working)  
+
+3) (Optional) a plot of the populations along the first 2 latent factors is created to show clustering. This is saved in "figures/7cpgoe_enviAssoc" and called "LFMM_ridge_0.0_[variable name]_LF_plot.png"  
+
+4) (Optional) a plot of Spearmanns Rho vs -log10 p values for LFMM is created in "figures/7cpgoe_enviAssoc" and called "Spearmanns_vs_LFMM_[variable name]_plot.png"  (WARNING currently not working)  
+
+5) A table in "data/cpgoe_enviAssoc_results/" called "[variable name]_assoc_results.txt" This table has 9 columns: "gene_ID","cpgdat.ID" (a combination of Chr and Pos), "Chr", "Start_Pos", "End_Pos", and Spearmanns Rho for the locus and LFMM ridge -log10(p) for the locus.  
+
+6) A summary table in "data/cpgoe_enviAssoc_results/" called "all_assoc_results.txt" This table has 39 columns: "Pos", "Chr", "Unique" (a combination of Chr and Pos), and Spearmanns Rho for the locus and LFMM ridge -log10(p) for the locus for EACH environmental variable.  
+
+5) A summary table version 2 in "data/cpgoe_enviAssoc_results/" called "all_assoc_results.rds" This table is the same as the ".txt" summary table above by stored as an .rds file which is smaller and can be read into R using the `readRDS` function.

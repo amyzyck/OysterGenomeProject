@@ -1,0 +1,14 @@
+---
+title: "LFMMcpoeResults"
+author: "adowneywall"
+date: "5/21/2019"
+output: html_document
+---
+
+```{r}
+setwd("/home/downeyam/Github/OysterGenomeProject/popstructureOutliers/")
+lfmm_ridge <- read.delim("/home/downeyam/Github/OysterGenomeProject/popstructureOutliers/data/envi_assoc_results/Mean_Annual_Temperature_Celsius_assoc_results.txt")
+#lfmm_test  <- readRDS("lfmm_ridge_test_results_mean_annual_temp.rds")
+#G_matrix   <- readRDS("genotypeMatrix_selecting_Wild.rds")
+```
+```
