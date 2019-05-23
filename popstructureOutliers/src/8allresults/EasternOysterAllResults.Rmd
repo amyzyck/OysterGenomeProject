@@ -1,0 +1,222 @@
+---
+title: "Eastern Oyster All REsults"
+author: "Katie Lotterhos"
+date: "5/22/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+alldat <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/UnrelatedOutlier_WildForAssocEnviAssoc_MergedData_Lotterhos.txt")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+add.breakpoints <- function (chr.index, ybottom, ytop, ytext) {
+       
+    breakpoints <- read.table("breakpoints_for_plots.txt")
+
+    breakpoints <- breakpoints[which(breakpoints$Chr == chr.index), ]
+
+    for (i in 1:nrow(breakpoints)) {
+        rect(xleft=breakpoints$Low[i], 
+             ybottom = ybottom, 
+             xright = breakpoints$High[i],
+             ytop = ytop,
+             col="lightgrey",
+             border="transparent")
+        x_text <- floor((breakpoints$High[i]+breakpoints$Low[i])/2)
+        text(x = x_text, y = ytext , paste("LG", breakpoints$LG[i], sep=" "))
+    }
+}
+
+make.plots <- function (data = NULL, which.vars = NULL, chr.index = NULL, outpath = NA) {
+    
+    #######################
+    # Load data and Setup #
+    #######################
+
+    # data - subset of full data given plots are made chromosome at a time    
+    data <- data[which(data$Chr == chr.index), ]
+    
+    # plots.path - path for plots to be saved given the subset specified
+    plots.path <- outpath
+
+    # data[, negativeLog10p][data[, negativeLog10p] >= 100] <- 100
+    # plots.x <- data$Pos[data[, He] > 0.1]
+    # 
+     png(paste(plots.path, 
+              "/manhattan_plots_", 
+              sprintf(paste("%0", 2, "d", sep=""), 
+              chr.index), 
+              ".png", 
+              sep = ""), 
+        height = 1440,
+        width = 2048) 
+    par(mfrow = c(2, 1), mar = c(8, 4, 2, 1))
+    plot(plots.x, 
+         data[, FST][data[, He] > 0.1],
+         ylab = "FST",
+         xlab = "",
+         ylim = c(-0.2, 1.1),
+         xlim = c(min(plots.x, na.rm = TRUE), max(plots.x, na.rm = TRUE)),
+         main = paste("OutFLANK Manhattan Plot: Chromsome", chr.index), 
+         col = rgb(0, 0, 0, 0.2),
+         xaxt = "n")
+    axis(side = 1,
+         las = 2,
+         at = seq(min(plots.x, na.rm = TRUE), 
+                  max(plots.x, na.rm = TRUE), 
+                  length.out = 50))
+    mtext(text = "Position (BP)",
+          side = 1,
+          line = 6)
+    # Add misassembly if chromosome has one
+    if (chr.index %in% misassembled) {
+        add.breakpoints(chr.index, ybottom = -0.25, ytop = 1.15, ytext = 1.1)
+        points(data$Pos[data[ , He] > 0.1], data[, FST][data[ , He] > 0.1])
+    }
+    # Colored points for outliers
+    points(data$Pos[which(data[, outflank.outlier] == TRUE)], 
+           data[, FST][which(data[, outflank.outlier] == TRUE)], 
+           col = "red", 
+           pch = 20)
+
+        points(data$Pos[which(data[, outflank.outlier] == TRUE & data[, pcadapt.outlier] != TRUE)], 
+           data[, FST][which(data[, outflank.outlier] == TRUE & data[, pcadapt.outlier] != TRUE)], 
+           col = "red", 
+           pch = 20)
+    points(data$Pos[which(data[, pcadapt.outlier] == TRUE & data[, outflank.outlier] != TRUE)], 
+           data[, FST][which(data[, pcadapt.outlier] == TRUE & data[, outflank.outlier] != TRUE)], 
+           col = "blue", 
+           pch = 20)
+    points(data$Pos[which(data[, pcadapt.outlier] == TRUE & data[, outflank.outlier] == TRUE)], 
+           data[, FST][which(data[, pcadapt.outlier] == TRUE & data[, outflank.outlier] == TRUE)], 
+           col = "orange", 
+           pch = 20)`
+    
+    
+}
+```
+
+```{r}
+
+table(alldat$chrom)
+
+mychrom = "NC_035780.1"
+dim(alldat)
+
+datchr <- alldat %>% filter(chrom == mychrom) %>% select("chromStart","chromEnd", "OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated", "OutFLANK_0.2_bigsnpr_0.8.2_pvaluesRightTail_unrelated", "OutFLANK_0.2_bigsnpr_0.8.2_OutlierFlag_unrelated")
+datchr <- datchr %>% mutate(OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated = -log10(OutFLANK_0.2_bigsnpr_0.8.2_pvaluesRightTail_unrelated))
+
+y1_points <- datchr$OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated > 5
+dat_points <- datchr %>% filter(y1_points)
+dat_bins <- datchr #%>% filter(!y1_points)
+dim(dat_points)
+head(dat_points)
+
+#j <- ggplot(datchr, aes(x = chromStart, y=y1))
+#j + geom_point() + theme_classic()
+
+#j + geom_area() + theme_classic()
+
+# Plot FST colored by P-value
+  p <- ggplot(dat_bins, aes(x = chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated)) + geom_bin2d(binwidth = c(10000, 0.01), color="blue", alpha=0.5) + theme_classic() + 
+  geom_point(data=dat_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="darkblue", alpha = 0.5,  size=0.3)
+  p
+
+
+# Plot P-value of FST vs P-value of kruskal wallis for population differences in CpG
+p2 <- ggplot(dat_bins, aes(x = chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated)) + geom_bin2d(binwidth = c(10000, 0.2), color="blue", alpha=0.5) + theme_classic() + 
+  geom_point(data=dat_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated),
+                                  alpha = 0.5, colour="blue", size=0.3)
+ # + add y-axis
+p2
+
+cvdat2_chr <- cvdat2 %>% filter(seqid==mychrom)
+#p + geom_bin2d(data=cvdat2_chr, aes(x=start, y=meanCpGOE), binwidth=c(10000, 0.01), color="red")
+#p + geom_point(data=cvdat2_chr, aes(x=start, y=meanCpGOE), colour="red", alpha=0.7,
+#               size=0.3)
+
+
+p2 + geom_point(data=cvdat2_chr, aes(x=start, y=-log10(kruskal_p)), colour="red", alpha=0.7,
+               size=0.5)
+
+head(cvdat2)
+cvdat2$numFSToutliers <- NA
+cvdat2$Fst_mean <- NA
+
+for (i in 1:nrow(cvdat2)){
+  (ind <- which(datchr$chromEnd > cvdat2_chr$start[i] & datchr$chromEnd < cvdat2_chr$end[i]))
+  if (length(ind)>0){
+    cvdat2$numFSToutliers[i] <- sum(datchr$OutFLANK_0.2_bigsnpr_0.8.2_OutlierFlag_unrelated[ind], na.rm=TRUE)
+    cvdat2$Fst_mean[i] <- mean(datchr$OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated[ind])
+    # note this is mean of ratios, need to go back and take mean of num. and denom. then divide
+  }
+  if(i%%1000==0){print(c(i,"of",nrow(cvdat2)))}
+}
+
+head(cvdat2)
+hist(cvdat2$Fst_mean)
+cvdat2$FST_meanNoNA <- cvdat2$Fst_mean
+cvdat2$FST_meanNoNA[is.na(cvdat2$FST_meanNoNA)] <- 0
+
+head(cvdat2)
+cvdat2$log10kruskal_p <- -log10(cvdat2$kruskal_p)
+cvdat2$numFSToutliers[is.na(cvdat2$numFSToutliers)] <- 0
+
+cvdat_plot <- cvdat2 %>% select(Fst_mean, FST_meanNoNA, numFSToutliers, meanCpGOE, log10kruskal_p, cv_gene)
+head(cvdat_plot)
+cor(cvdat_plot, method="spearman",use = "na.or.complete")
+
+panel.lm <- function (x, y,  pch = par("pch"), col.lm = "red",  ...) {   
+  ymin <- min(y)
+  ymax <- max(y)
+  xmin <- min(x)
+  xmax <- max(x)
+  ylim <- c(min(ymin,xmin),max(ymax,xmax))
+  xlim <- ylim
+  points(x, y, pch = 19,col=adjustcolor("black", 0.1) ,ylim = ylim, xlim= xlim,...)
+  ok <- is.finite(x) & is.finite(y)
+  if (any(ok)) 
+    abline(lm(y[ok]~ x[ok]), 
+           col = col.lm, ...)
+}
+
+pairs(cvdat_plot, panel=panel.lm)
+
+pairs(cvdat_plot, pch = 19,col=adjustcolor("black", 0.1), panel=panel.smooth)
+
+
+boxplot(meanCpGOE~is.na(Fst_mean), data= cvdat2)
+
+plot(meanCpGOE ~ Fst_mean, data= cvdat2, col=adjustcolor("black", 0.5))
+plot(numFSToutliers ~ Fst_mean, data= cvdat2, col=adjustcolor("black", 0.5))
+plot(numFSToutliers/(end-start) ~ Fst_mean, data= cvdat2, col=adjustcolor("black", 0.5), pch=19)
+plot(numFSToutliers/(end-start) ~ meanCpGOE, data= cvdat2, col=adjustcolor("black", 0.5), pch=19)
+abline(lm(numFSToutliers/(end-start) ~ meanCpGOE, data=cvdat2))
+
+plot(Fst_mean ~ meanCpGOE, data=cvdat2)
+plot(FST_meanNoNA ~ meanCpGOE, data=cvdat2)
+plot(cv_gene ~ meanCpGOE, data= cvdat2, col=adjustcolor("black", 0.1), pch=19)
+
+plot(cv vs mean cpg0e)
+plot(mean Cpg0e)
+
+hist(cvdat2$meanCpGOE, breaks=seq(0,2.5, by=0.01))
+hist(cvdat2$meanCpGOE[which(is.na(cvdat2$Fst_mean))], breaks=seq(0,2.5, by=0.01))
+```

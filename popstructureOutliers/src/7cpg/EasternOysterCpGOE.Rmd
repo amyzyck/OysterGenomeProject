@@ -1,0 +1,178 @@
+---
+title: "Eastern Oyster CpGOE"
+author: "Katie Lotterhos"
+date: "5/21/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(tidyverse)
+library(R.utils)
+library(ncdf4)
+library(ape)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+
+cpgdat <-  fread("http://gannet.fish.washington.edu/Atumefaciens/20190225_cpg_oe/ID_CpG_labelled_all")
+head(cpgdat)
+dim(cpgdat)
+
+# First we want to remove LM, because it is a highly inbred population
+# We also want to remove the inbred individuals used for sequencing (NEH and HG)
+  (which_rm <- grep(c("^(ID|LM|NG|HG)"), names(cpgdat)))
+  names(cpgdat)[which_rm]
+
+# Some column names are the same. Quick fix, will need to fix later
+# with correct sample names
+  cbind(names(cpgdat),duplicated(names(cpgdat)))
+  names(cpgdat)[grep("HC_VA", names(cpgdat))] <- paste0(names(cpgdat)[grep("HC_VA", names(cpgdat))],"_", 1:6)
+  cbind(names(cpgdat),duplicated(names(cpgdat)))
+  
+# Make a smaller dataframe only containing data for CV calculation
+  cpgdat_sm <- cpgdat %>% select(names(cpgdat)[-which_rm])
+  head(cpgdat_sm)
+  dim(cpgdat_sm)
+
+# Calculate CV
+  sd_gene <- apply(cpgdat_sm, 1, sd)
+  head(sd_gene)
+  mean_gene <- apply(cpgdat_sm,1, mean, rm.na=TRUE)
+  cv_gene <- sd_gene/mean_gene
+  str(cv_gene)
+  cvdat <- data.frame(cpgdat$ID,cpgdat_sm, cv_gene)
+  sum(is.na(cv_gene))
+
+# Determine which genes are highest
+(cutoff <- quantile(cv_gene,probs = 0.99, na.rm=TRUE, type = 1))
+
+cond <- cv_gene>cutoff & !(is.na(cv_gene))
+sum(cond)
+
+cvdat[which(cond),]
+dim(cvdat)
+boxplot(as.numeric(cvdat[which(cond)[5],2:79])~names(cvdat)[2:79], las=2)
+
+hist(cv_gene[which(cond)], breaks=seq(0,0.35, 0.01))
+```
+
+## Download GFF file
+```{r}
+urlgff <- "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.gff.gz"
+
+temp_nc <- fs::file_temp(ext = ".gff.gz")
+download.file(urlgff, destfile = temp_nc, mode = "wb")
+nc_path <- gunzip(temp_nc)
+gff <- ncdf4::nc_open(nc_path)
+
+dat <- read.gff("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/gff/GCF_002022765.2_C_virginica-3.0_genomic.gff.gz", GFF3 = TRUE)
+dim(dat)
+
+head(dat)
+head(cvdat)
+dat$cpgdat.ID <- paste0(dat$seqid,":",dat$start-1,"-",dat$end)
+  # To match the CpGOE data, need start site minus one
+
+cvdatfull <- left_join(cvdat, dat, by="cpgdat.ID")
+head(cvdatfull)
+
+# make sure merge has same number of columns and no missing data
+dim(cvdat)
+dim(cvdatfull)
+sum(is.na(cvdatfull$seqid))
+
+head(cvdatfull[order(cvdatfull$cv_gene,decreasing = TRUE),], 200)
+
+table(cvdatfull$type)
+```
+
+### Robert's GO-slim file
+
+```{r}
+
+GO_slim <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/gff/Blastquery-GOslim.tab")
+head(GO_slim)
+dim(GO_slim)
+names(GO_slim) <- c("cpdat.ID", "GO_ID", "term_name", "aspect")
+
+cbind(table(GO_slim$term_name)/nrow(GO_slim))
+
+```
+
+### Kevin's GO file
+```{r}
+GOkev <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/gff/XP_sequences_Cvirginica_GCF_002022765.2_GO.tab")
+head(GOkev)
+```
+
+### Download population file
+```{r}
+poplot <- fread("/Users/katie/Desktop/Repos/OysterGenomeProject/popstructureOutliers/data/PopPlotting_COLORS.csv")
+poplot
+
+sampdat <- fread("/Users/katie/Desktop/Repos/OysterGenomeProject/popstructureOutliers/data/modified_samplemetadata.csv")
+
+head(sampdat)
+
+head(cvdat)
+(Sample.ID  <- names(cvdat[2:79])) #beware, hard coding
+
+# merge and check
+length(Sample.ID)
+sampdat_cv <- left_join(data.frame(Sample.ID), sampdat)
+dim(sampdat_cv)
+identical(sampdat_cv$Sample.ID, Sample.ID)
+
+sampdat_cv <- left_join(sampdat_cv, poplot)
+
+head(sampdat_cv)
+
+P_Bonf <- 0.05/nrow(cvdat)
+cvdat$kruskal_p <- NA
+
+sampdat_cv$Plot_name2 <- paste(sprintf(sampdat_cv$Plot_order, fmt="%02d"), 
+                               sampdat_cv$Plot_name, sep="_")
+head(sampdat_cv)  
+
+
+
+poplot$Plot_name2 <- paste(sprintf(poplot$Plot_order, fmt="%02d"), 
+                               poplot$Plot_name, sep="_")
+
+matind <- match(levels(as.factor(sampdat_cv$Plot_name2)), poplot$Plot_name2)
+
+
+  setwd("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/figures/CpG_OE_pop")
+  cvdat$kruskal_p <- NA
+for (i in 1:nrow(cvdat)){
+  if(i%%1000 == 0)(print(i))
+  out <- kruskal.test(as.numeric(cvdat[i,2:79]) ~ as.factor(sampdat_cv$custom.id))
+  cvdat$kruskal_p[i] <- out$p.value
+  
+  if(!is.na(out$p.value) & out$p.value < 5e-04){
+    print(i)
+    pdf(paste0("CpGpop_", cvdat$cpgdat.ID[i], ".pdf"))
+      par(mar=c(10,4,0,0))
+      boxplot(as.numeric(cvdat[i,2:79]) ~ as.factor(sampdat_cv$Plot_name2), las=2, ylab="CpG Obs/Exp", col=poplot$Plot_color[matind])
+    dev.off()
+  }
+}
+  
+cvdat$meanCpGOE <- rowMeans(cvdat[,2:79])
+dat2 <- dat %>% filter(type=="gene")
+dim(cvdat)
+head(cvdat)
+
+cvdat2 <- left_join(cvdat, dat2, by="cpgdat.ID")
+head(cvdat2)
+dim(cvdat2)
+```
