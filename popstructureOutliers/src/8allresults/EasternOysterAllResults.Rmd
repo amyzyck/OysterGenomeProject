@@ -18,6 +18,13 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r cars}
 
 alldat <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/UnrelatedOutlier_WildForAssocEnviAssoc_MergedData_Lotterhos.txt")
+
+#cpgoedat <- readRDS("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc_CpG/CpGOE_full_results.rds")
+
+#cpgoedat <- readRDS("https://drive.google.com/file/d/1zruapRIwHrUllnDXS-1biq8Au8ffvSjA/view?usp=sharing")
+
+cpgoedat <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc_CpG/CpGOE_full_results.txt")
+head(cpgoedat)
 ```
 
 ## Including Plots
@@ -117,15 +124,15 @@ make.plots <- function (data = NULL, which.vars = NULL, chr.index = NULL, outpat
 
 table(alldat$chrom)
 
-mychrom = "NC_035780.1"
+mychrom = "NC_035782.1"
 dim(alldat)
 
-datchr <- alldat %>% filter(chrom == mychrom) %>% select("chromStart","chromEnd", "OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated", "OutFLANK_0.2_bigsnpr_0.8.2_pvaluesRightTail_unrelated", "OutFLANK_0.2_bigsnpr_0.8.2_OutlierFlag_unrelated")
-datchr <- datchr %>% mutate(OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated = -log10(OutFLANK_0.2_bigsnpr_0.8.2_pvaluesRightTail_unrelated))
+datchr <- alldat %>% filter(chrom == mychrom) 
 
-y1_points <- datchr$OutFLANK_0.2_bigsnpr_0.8.2log10_pvaluesRightTail_unrelated > 5
+y1_points <- datchr$OutFLANK_0.2_bigsnpr_0.8.2_OutlierFlag_unrelated & datchr$pcadapt_4.0.3_bigsnpr_0.8.2_OutlierFlag_unrelated
+
 dat_points <- datchr %>% filter(y1_points)
-dat_bins <- datchr #%>% filter(!y1_points)
+
 dim(dat_points)
 head(dat_points)
 
@@ -135,9 +142,70 @@ head(dat_points)
 #j + geom_area() + theme_classic()
 
 # Plot FST colored by P-value
-  p <- ggplot(dat_bins, aes(x = chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated)) + geom_bin2d(binwidth = c(10000, 0.01), color="blue", alpha=0.5) + theme_classic() + 
-  geom_point(data=dat_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="darkblue", alpha = 0.5,  size=0.3)
-  p
+  p <- ggplot(datchr, aes(x = chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated)) + geom_bin2d(binwidth = c(10000, 0.01), color="lightblue", alpha=0.5) + theme_classic() + 
+  geom_point(data=dat_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="darkblue", alpha = 0.5,  size=1)
+ # p
+  
+# highlight temperature outliers
+y2_points <- datchr$LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc > 10
+dat2_points <- datchr %>% filter(y2_points)  
+
+p2 <- p + geom_point(data=dat2_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="black", alpha = 0.5,  size=3, shape = 6) #upsidedown triangle
+  
+# highlight salinity outliers
+hist(datchr$LFMM_ridge_0.0_log10p_Mean_Annual_Salinity_ppt_wild_for_assoc)
+y3_points <- datchr$LFMM_ridge_0.0_log10p_Mean_Annual_Salinity_ppt_wild_for_assoc > 7
+dat3_points <- datchr %>% filter(y3_points)  
+
+p3 <- p2 + geom_point(data=dat3_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="blue", alpha = 0.7,  size=5, shape=8)
+# star shape
+
+#p3    
+  
+# highlight dermo outliers
+hist(datchr$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc)
+y4_points <- datchr$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc > 10
+dat4_points <- datchr %>% filter(y4_points)  
+
+p4 <- p3 + geom_point(data=dat4_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated), colour="blue", alpha = 0.7,  size=5, shape=5)
+# diamond shape
+#p4    
+
+
+# highlight temp CpG OE outliers
+hist(cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Mean_Annual_Temperature_Celsius_wild_for_assoc)
+y5_points <- cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Mean_Annual_Temperature_Celsius_wild_for_assoc > 5
+dat5_points <- cpgoedat %>% filter(y5_points & seqid==mychrom)  
+dim(dat5_points)
+
+p5 <- p4 + geom_point(data=dat5_points, aes(x=start+(start-end)/2, y=FST_meanNoNA), colour="red", alpha = 0.7,  size=3, shape = 6) 
+#p5
+
+# highlight dermo CpG OE outliers
+hist(cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Dermo_pressure_wild_for_assoc)
+y6_points <- cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Dermo_pressure_wild_for_assoc > 5
+dat6_points <- cpgoedat %>% filter(y6_points & seqid==mychrom)  
+dim(dat6_points)
+p6 <- p5 + geom_point(data=dat6_points, aes(x=start+(start-end)/2, y=FST_meanNoNA), colour="red", alpha = 0.7,  size=5, shape = 5) 
+#p6
+
+# highlight salinity CpG OE outliers
+hist(cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Mean_Annual_Salinity_ppt_wild_for_assoc)
+y7_points <- cpgoedat$LFMM_ridge_0.0_log10p_cpgoe_Dermo_pressure_wild_for_assoc > 3
+dat7_points <- cpgoedat %>% filter(y7_points & seqid==mychrom)  
+dim(dat7_points)
+p7 <- p6 + geom_point(data=dat7_points, aes(x=start+(start-end)/2, y=FST_meanNoNA), colour="red", alpha = 0.7,  size=5, shape = 8) 
+p7 + xlim(3.9e07, 4.2e07)
+
+#
+
+
+
+#
+
+
+
+
 
 
 # Plot P-value of FST vs P-value of kruskal wallis for population differences in CpG
@@ -146,6 +214,13 @@ p2 <- ggplot(dat_bins, aes(x = chromStart, y=OutFLANK_0.2_bigsnpr_0.8.2log10_pva
                                   alpha = 0.5, colour="blue", size=0.3)
  # + add y-axis
 p2
+
+
+
+p2 + geom_bin2d(data=dat_bins, aes(x = chromStart, y=LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc), binwidth = c(10000, 0.2), color="blue", alpha=0.5)
+
+Spearmanns_Rho_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc
+
 
 cvdat2_chr <- cvdat2 %>% filter(seqid==mychrom)
 #p + geom_bin2d(data=cvdat2_chr, aes(x=start, y=meanCpGOE), binwidth=c(10000, 0.01), color="red")
