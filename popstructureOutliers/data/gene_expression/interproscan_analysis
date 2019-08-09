@@ -1,0 +1,24 @@
+Steps used to generate Interproscan GO-terms
+Kevin M Johnson, PhD
+Louisiana State University
+NSF Postdoctoral Fellow
+Kelly Lab
+2/21/2018
+
+
+1. Convereted all sequences in either CDS or protein_ID into longest open reading frame amino acid sequences using Blast2GO 
+
+2. Split the fsa file down into 7 10,000 sequences pieces to speed up the annotation process (the last one only had 201 sequences.
+
+code:
+perl split_multifasta.pl --input_file CVirginica_ref_protein_id_aa.fsa --output_dir ./ -f CV_prot_id_aa  --seqs_per_file=10000
+
+3. Ran each smaller file through interproscan version 5.27-66.0 installed with the recomended Panther member database analysis package (v12.0).
+example code:
+
+interproscan-5.27-66.0/interproscan.sh -i /work/kjohnson/CV_interpro_out/CV_prot_id_aa1.fsa -b ./ -goterms -f TSV,XML,GFF3
+
+4. Imported annotations into Blast2GO
+5. Mapped annotations to enzyme code in Blast2GO
+6. Removed _ORF from the sequence ID
+6. Exported annotations and saved as a tab delimitated file
