@@ -1,3 +1,13 @@
+################################################################################
+# outliers-by-region.R - KBW                                                   #
+#                                                                              #
+# This script goes through the files created by running                        #
+# intersect-outliers-regions.sh and creates data table detailing the amount    #
+# of outliers from each chromosome are located in different regions of the     #
+# genome. The script will also produce a bar plot showing this data            #
+################################################################################
+
+# identifiers of each of the chomosomes
 chr.names <- c("NC_035780.1",
                "NC_035781.1",
                "NC_035782.1",
@@ -8,39 +18,45 @@ chr.names <- c("NC_035780.1",
                "NC_035787.1",
                "NC_035788.1",
                "NC_035789.1")
-
+# Load data 
+# All FST outliers
 fst.outliers <- read.table("FstOutliers_Unrelated.bed", 
                            header = TRUE, 
                            stringsAsFactors=FALSE, 
                            sep="")
+# Outliers in exon regions
 exon.data <- read.table("Outliers_exon.txt", 
                         header = FALSE, 
                         stringsAsFactors=FALSE, 
                         sep="\t")
+# Outliers in cds regions
 cds.data <- read.table("Outliers_CDS.txt", 
                        header = FALSE, 
                        stringsAsFactors=FALSE, 
                        sep="\t")
+# Outliers in gene regions
 gene.data <- read.table("Outliers_gene.txt", 
                         header = FALSE, 
                         stringsAsFactors=FALSE, 
                         sep="\t")
+# Outliers in intergenic regions
 inter.data <- read.table("Outliers_Intergenic.txt", 
                          header = FALSE, 
                          stringsAsFactors=FALSE, 
                          sep="\t")
+# Outliers in UTR regions
 utr.data <- read.table("Outliers_UTR.txt", 
                        header = FALSE, 
                        stringsAsFactors=FALSE, 
                        sep="\t")
-
+# Load data tables into a list
 all.regions <- list(exon.data, 
                     cds.data,
                     gene.data, 
                     inter.data,
                     utr.data,
                     fst.outliers)
-
+# Initialize data frame to be propogated
 outliers.by.region <- data.frame("CHR"=chr.names,
                                  "Exon"=NA,
                                  "CDS"=NA,
@@ -48,21 +64,27 @@ outliers.by.region <- data.frame("CHR"=chr.names,
                                  "Intergenic"=NA,
                                  "UTR"=NA,
                                  "Total"=NA)
-
+# Loop through each of the data files and count the amount of outliers from each chromosome and place it into the respective column
 for(i in 1:length(chr.names)) {
     for(j in 1:length(all.regions)) {
         temp <- all.regions[[j]]
         outliers.by.region[i, j+1] <- length(which(temp[,1] == chr.names[i]))
     }
 }
-
+# Save data
 write.table(outliers.by.region,
-            "OutliersByChrAndRegion_test.txt", 
+            "OutliersByChrAndRegion.txt", 
             row.names = FALSE)
-
-data <- read.table("OutliersByChrAndRegion_test.txt", 
+# Read file
+data <- read.table("OutliersByChrAndRegion.txt", 
                    header = TRUE, 
                    stringsAsFactors = FALSE)
+
+################################################################################
+# Barplot using the data                                                       #
+# ***NEEDS TO BE FIXED*** - I did this bar plot wrong on the poster and this   #
+# should be fixed                                                              #
+################################################################################
 
 par(mar = c(7.1, 4.1, 4.1, 2.1))
 barplot(data$Total, 
@@ -163,5 +185,8 @@ for (i in 2:ncol(total.table)) {
 
 ChrLength <- c(65668440, 61752955, 77061148, 59691872, 98698416, 51258098, 57830854, 75944018, 104168038, 32650045)
 total.table$ChrLength <- c(ChrLength, sum(ChrLength))
+
+
+
 
 
