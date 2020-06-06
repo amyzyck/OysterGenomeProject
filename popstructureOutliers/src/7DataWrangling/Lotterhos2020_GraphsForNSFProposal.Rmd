@@ -1,0 +1,140 @@
+---
+title: "EasternOysterForNSF"
+author: "KE Lotterhos"
+date: "5/29/2020"
+output: html_document
+---
+
+# Source code location
+setwd("/Users/lotterhos/Documents/GitHub/OysterGenomeProject/popstructureOutliers/src/7DataWrangling")
+
+# Data storage location
+/Users/lotterhos/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(tidyverse)
+```
+
+```{r}
+data_path <- "/Users/lotterhos/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc/"
+```
+
+## Dermo pressure
+```{r}
+derm <- fread(paste0(data_path,"Dermo_pressure_assoc_results.txt"))
+str(derm)
+
+# Calculate a Bonferroni threshold to highlight points on the plots
+
+
+derm_5 <- derm %>% filter(Chr==5)
+(thresh <- -log10(0.05/dim(derm_5)[1]))
+
+head(derm_5)
+dim(derm_5)
+
+
+
+
+## Find weird LA loci that cause spurious outliers
+h <- hist(derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc, breaks=seq(0,30,0.01))
+cond <- h$breaks>15 & h$breaks<20 & h$counts>25
+cbind(h$breaks[cond], h$counts[cond])
+
+## Manually remove weird LA loci
+cond_rm1 <- which(derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc>17.08 & derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc<17.09)
+length(cond_rm1)
+cond_rm2 <- which(derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc>18.59 & derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc<18.60)
+length(cond_rm2)
+
+derm_5 <- derm_5[-c(cond_rm1, cond_rm2),]
+dim(derm_5)
+
+derm_5_points <- derm_5 %>% filter(derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc > thresh)
+str(derm_5_points)
+
+#plot(derm_5$Pos, derm_5$LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc)
+p_Derm <- ggplot(derm_5, aes(x = Pos, y=LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc)) +
+    geom_bin2d(binwidth = c(10000, 0.1), color="darkblue", alpha=0.7) + theme_classic() +
+geom_point(data=derm_5_points, aes(x=Pos, y=LFMM_ridge_0.0_log10p_Dermo_pressure_wild_for_assoc),
+               colour="darkblue", alpha = 0.7,  size=1, shape=5) + xlab("Position (Chrom. 5)") + ylab("-log10(P) from LFMM") + theme(legend.position='none')
+
+                                                                p_Derm
+```
+
+## MAT
+```{r}
+mat <- fread(paste0(data_path,"Mean_Annual_Temperature_Celsius_assoc_results.txt"))
+str(mat)
+
+mat_5 <- mat %>% filter(Chr==5)
+str(mat_5)
+
+
+## Find weird LA loci that cause spurious outliers
+cond <- which(mat_5$LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc > 30)
+length(cond)
+mat_5 <- mat_5[-cond,]
+
+mat_5_points <- mat_5 %>% filter(mat_5$LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc > thresh)
+dim(mat_5_points)
+
+p_temp <-   geom_bin2d(data=mat_5, aes(x = Pos, y=LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc), binwidth = c(10000, 0.1), color="sienna1", alpha=0.6) 
+
+p_temp_points <-   geom_point(data=mat_5_points, aes(x=Pos,
+                                             y=LFMM_ridge_0.0_log10p_Mean_Annual_Temperature_Celsius_wild_for_assoc),
+                       colour="sienna1", alpha = 0.8,  size=2, shape = 6) #upsidedown triangle
+
+
+p_Derm + p_temp + p_temp_points
+```
+
+
+## MSX
+```{r}
+msx <- fread(paste0(data_path,"MSX_pressure_assoc_results.txt"))
+str(msx)
+msx_5 <- msx %>% filter(Chr==5)
+str(msx_5)
+
+## Find weird LA loci that cause spurious outliers
+cond <- which(msx_5$LFMM_ridge_0.0_log10p_MSX_pressure_wild_for_assoc > 30)
+length(cond)
+msx_5 <- msx_5[-cond,]
+
+msx_5_points <- msx_5 %>% filter(LFMM_ridge_0.0_log10p_MSX_pressure_wild_for_assoc>thresh)
+  
+p_msx <- 
+    geom_bin2d(data = msx_5, aes(x = Pos, y=LFMM_ridge_0.0_log10p_MSX_pressure_wild_for_assoc), binwidth = c(10000, 0.1), color="lightblue", alpha=0.6)
+
+p_msx_points <- geom_point(data = msx_5_points, aes(x = Pos, y=LFMM_ridge_0.0_log10p_MSX_pressure_wild_for_assoc),  color="lightblue", alpha=0.4, size=0.8)
+
+p_Derm + p_temp + p_temp_points + p_msx + p_msx_points
+```
+
+
+
+## Salinity
+```{r}
+mas <- fread(paste0(data_path,"Mean_Annual_Salinity_ppt_assoc_results.txt"))
+str(mas)
+
+mas_5 <- mas %>% filter(Chr==5)
+str(mas_5)
+
+mas_5_points <- mas %>% filter(LFMM_ridge_0.0_log10p_Mean_Annual_Salinity_ppt_wild_for_assoc > thresh)
+
+p_sal <- geom_bin2d(data = mas_5, aes(x = Pos, y=LFMM_ridge_0.0_log10p_Mean_Annual_Salinity_ppt_wild_for_assoc), binwidth = c(10000, 0.1), color="springgreen2", alpha=0.1)
+
+p_sal_points <- geom_point(data = mas_5_points, aes(x = Pos, y=LFMM_ridge_0.0_log10p_Mean_Annual_Salinity_ppt_wild_for_assoc),
+  colour="springgreen2", alpha = 0.5,  size=2, shape=8)
+
+```
+
+```{r put it together}
+pdf("../../figures/Chrom5_LFMMoutliers_KEL.pdf", width=12, height=4)
+p_Derm + p_temp + p_temp_points + p_msx + p_msx_points + p_sal + p_sal_points 
+dev.off()
+```

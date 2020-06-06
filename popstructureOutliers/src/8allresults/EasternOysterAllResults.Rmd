@@ -18,18 +18,18 @@ library(tidyverse)
 ```{r cars}
 
 # Dataset for GEA associations
-  alldat <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/UnrelatedOutlier_WildForAssocEnviAssoc_MergedData_Lotterhos.txt")
+  alldat <- fread("/Users/lotterhos/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/UnrelatedOutlier_WildForAssocEnviAssoc_MergedData_Lotterhos.txt")
 
 #cpgoedat <- readRDS("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc_CpG/CpGOE_full_results.rds")
 
 #cpgoedat <- readRDS("https://drive.google.com/file/d/1zruapRIwHrUllnDXS-1biq8Au8ffvSjA/view?usp=sharing")
 
 # Dataset for CpG Expected/Observed
-cpgoedat <- fread("/Users/katie/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc_CpG/CpGOE_full_results.txt")
+cpgoedat <- fread("/Users/lotterhos/Google Drive/katie_research/___Eastern Oyster Genome/Population Structure/large_outputs/envi_assoc_CpG/CpGOE_full_results.txt")
 head(cpgoedat)
 
 # Dataset for salinity differntial expression (Kevin)
-  salDE <- fread("/Users/katie/Desktop/Repos/OysterGenomeProject/popstructureOutliers/data/gene_expression/Salinity.Diff.Expression.csv")
+  salDE <- fread("/Users/lotterhos/Documents/Repos/OysterGenomeProject/popstructureOutliers/data/gene_expression/Salinity.Diff.Expression.csv")
   head(salDE)
 
 
@@ -227,7 +227,7 @@ p2 <- p1 + geom_point(data=dat2_points, aes(x=chromStart, y=OutFLANK_0.2_bigsnpr
   p4 <- p3 + geom_point(data=dat4_points, aes(x=chromStart,
                                               y=OutFLANK_0.2_bigsnpr_0.8.2_FST_unrelated),
                         colour="turquoise4", alpha = 0.7,  size=5, shape=5)
-# diamond shape
+# diamond shapet
   p4    
 ```
 
