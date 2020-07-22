@@ -29,9 +29,6 @@ library(psych)
 #////////////////////////////////////////////////////////////////////////
 
 combineMetadata <- function(metadata, envi_metadata, plot_colors){
-  # make the Wild.Sel column match between the two metadata files
-  envi_metadata$Wild.Sel[which(envi_metadata$Wild.Sel == "inbred")] <- "I"
-
   # combine the two metadata csv files
   common_cols <- intersect(names(envi_metadata), names(metadata))
   comb_metadata <-  merge(metadata, 
@@ -78,7 +75,7 @@ subsetGenoData <- function(geno_data, comb_metadata){
   wild$Chr <- wild$Chr[not_fixed]
  
   ### Save the new genotype matrix for quicker future analysis
-  print("Saving 'data/genotypeMatrix_selecting_Wild.rds'")
+  print("Saving 'genotypeMatrix_selecting_Wild.rds'")
   saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
   return(wild)
 }
@@ -176,11 +173,11 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
 }
 
 #### Read in and process the data
-all_data        <- readRDS("data/large_data/genotypeMatrix.rds")
+all_data        <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix.rds")
 print("Reading and processing metadata")
-metadata       <- read.csv("data/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
-envi_metadata  <- read.csv("data/environment/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
-plot_metadata  <- read.csv("data/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
+metadata       <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
+envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
+plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
 
 #### recode envi_metadata pressure variables
 # low = 1, medium = 2, high = 3
@@ -212,10 +209,9 @@ dev.off()
 
 ## Calc statistics and generate plots
 
-envi_variables <- c("Max_temperature_Celsius", "Min_temperature_Celsius",
-                    "Mean_Annual_Salinity_ppt", "dd_0", "dd_30", "Lat",
-                    "Long", "Temp_C", "Mean_Annual_Temperature_Celsius",
-                    "Dermo_pressure", "MSX_pressure")
+envi_variables <- c("Latitude","Longitude","Distance", "SE",
+                    "Temperature", "Salinity", "pH", "Chlorophylla",
+                    "DO")
 
 for (var in envi_variables){
   message("----------------------------------------------------")
@@ -224,10 +220,10 @@ for (var in envi_variables){
   
   out_table <- calcEnviLFMMandSpRho(envi_var = var, pop_object = wild, metadata = all_metadata, plots = TRUE)
   print("saving dataframe")
-  if (!dir.exists("data/envi_assoc_results")){
-    dir.create("data/envi_assoc_results")
+  if (!dir.exists("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/envi_assoc_results")){
+    dir.create("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/envi_assoc_results")
   }
-  write.table(out_table, file = paste0("data/envi_assoc_results/", var, "_assoc_results.txt"), 
+  write.table(out_table, file = paste0("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/envi_assoc_results/", var, "_assoc_results.txt"), 
               quote = FALSE, sep = "\t", row.names = FALSE)
 }
 
