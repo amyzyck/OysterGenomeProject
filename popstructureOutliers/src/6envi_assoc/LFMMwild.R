@@ -173,7 +173,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
 }
 
 #### Read in and process the data
-all_data        <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix.rds")
+geno_data        <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix.rds")
 print("Reading and processing metadata")
 metadata       <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
 envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/full_sample_metadata_7_20_20_AZ.csv", stringsAsFactors = FALSE, header = TRUE)
@@ -181,7 +181,7 @@ plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/N
 
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
-#wild <- subsetGenoData(all_data, all_metadata)
+#wild <- subsetGenoData(geno_data, all_metadata)
 wild <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix_selecting_Wild.rds")
 
 # quick check
