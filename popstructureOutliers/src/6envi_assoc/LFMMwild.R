@@ -76,7 +76,7 @@ subsetGenoData <- function(geno_data, comb_metadata){
  
   ### Save the new genotype matrix for quicker future analysis
   print("Saving 'genotypeMatrix_selecting_Wild.rds'")
-  saveRDS(wild, paste("data", "genotypeMatrix_selecting_Wild.rds", sep="/"))
+  saveRDS(wild, paste("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix_selecting_Wild.rds", sep="/"))
   return(wild)
 }
 
@@ -150,7 +150,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
     dev.off()
     
     # Spearmann's vs LFMM
-    png(paste("figures/6envi_assoc/Spearmanns_vs_LFMM", envi_var, "plot.png", sep = "_"))
+    png(paste("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/Spearmanns_vs_LFMM", envi_var, "plot.png", sep = "_"))
     plot(absSpCor, LFMM_ridge_0.0_log10p, main = "Spearmann's Rho vs LFMM Ridge")
     abline(lm(LFMM_ridge_0.0_log10p ~ as.vector(absSpCor)), col = "red")
     dev.off()
@@ -182,7 +182,7 @@ plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/N
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
 #wild <- subsetGenoData(all_data, all_metadata)
-wild <- readRDS("data/genotypeMatrix_selecting_Wild.rds")
+wild <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix_selecting_Wild.rds")
 
 # quick check
 
