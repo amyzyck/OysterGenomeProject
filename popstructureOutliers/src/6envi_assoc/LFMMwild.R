@@ -179,14 +179,6 @@ metadata       <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/N
 envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/full_sample_metadata_7_20_20_AZ.csv", stringsAsFactors = FALSE, header = TRUE)
 plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
 
-#### recode envi_metadata pressure variables
-# low = 1, medium = 2, high = 3
-envi_metadata$Dermo_pressure <- factor(envi_metadata$Dermo_pressure, levels(factor(envi_metadata$Dermo_pressure))[c(2,3,1)])
-envi_metadata$Dermo_pressure <- as.numeric(envi_metadata$Dermo_pressure)
-# none = 0, low = 1, sporadic = 2, high = 3
-envi_metadata$MSX_pressure <- factor(envi_metadata$MSX_pressure, levels(factor(envi_metadata$MSX_pressure))[c(3,2,4,1)])
-envi_metadata$MSX_pressure <- as.numeric(envi_metadata$MSX_pressure) - 1
-
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
 
 #wild <- subsetGenoData(all_data, all_metadata)
