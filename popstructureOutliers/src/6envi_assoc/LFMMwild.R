@@ -76,7 +76,7 @@ subsetGenoData <- function(geno_data, comb_metadata){
  
   ### Save the new genotype matrix for quicker future analysis
   print("Saving 'genotypeMatrix_selecting_Wild.rds'")
-  saveRDS(wild, paste("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix_selecting_Wild.rds", sep="/"))
+  saveRDS(wild, paste("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM", "genotypeMatrix_selecting_Wild.rds", sep="/"))
   return(wild)
 }
 
@@ -180,9 +180,6 @@ envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/N
 plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
 
 all_metadata <- combineMetadata(metadata = metadata, envi_metadata = envi_metadata, plot_colors = plot_metadata)
-
-#wild <- subsetGenoData(geno_data, all_metadata)
-wild <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix_selecting_Wild.rds")
 
 # quick check
 
