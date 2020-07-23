@@ -18,11 +18,11 @@ library(psych)
 #////////////////////////////////////////////////////////////////////////
 # combineMetadata is a function to combine the metedata from 
 # modified_samplemetadata.csv with environmental data from
-# full_sample_metadata_4_20_19_ER.csv
+# full_sample_metadata_4_20_20_AZ.csv
 #-----------------------------------------------------------------------
 # inputs: 
 #  - metadata      -- modfied_samplemetadata.csv
-#  - envi_metadata -- full_sample_metadata_4_20_19_ER.csv
+#  - envi_metadata -- full_sample_metadata_4_20_20_AZ.csv
 # outputs:
 #  - a dataframe that combines the data from the 2 files
 #
@@ -176,7 +176,7 @@ calcEnviLFMMandSpRho <- function(envi_var, pop_object, metadata, plots){
 all_data        <- readRDS("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/genotypeMatrix.rds")
 print("Reading and processing metadata")
 metadata       <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/modified_samplemetadata.csv", stringsAsFactors = FALSE, header = TRUE)
-envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/full_sample_metadata_4_20_19_ER.csv", stringsAsFactors = FALSE, header = TRUE)
+envi_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/full_sample_metadata_7_20_20_AZ.csv", stringsAsFactors = FALSE, header = TRUE)
 plot_metadata  <- read.csv("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/PopPlotting_COLORS.csv", stringsAsFactors = FALSE, header = TRUE)
 
 #### recode envi_metadata pressure variables
@@ -202,7 +202,7 @@ if (! identical(wild$Sample.ID, all_metadata$Sample.ID[which(all_metadata$wild_f
 
 ### Make a scree plot to identify the K value to use
 print("plotting PCA scree plot")
-png("figures/6envi_assoc/PCA_scree_plot.png")
+png("/home/azyck/NB_capture/NB_ddocent/NB_OutlierDetect/NB_LFMM/PCA_scree_plot.png")
 PCA <- prcomp(wild$G)
 plot(PCA, type = "l", main = "PCA Scree Plot")
 dev.off()
